@@ -40,10 +40,43 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
   const [logoUrl, setLogoUrl] = useState('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=150&q=80');
   const [addLiquidityUsd, setAddLiquidityUsd] = useState(2500);
 
+  // AI Token Generator State
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiDescription, setAiDescription] = useState('');
+
   // Deployment Progress Pipeline
   const [isDeploying, setIsDeploying] = useState(false);
   const [pipelineProgress, setPipelineProgress] = useState<string[]>([]);
   const [deployedToken, setDeployedToken] = useState<any>(null);
+
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim()) {
+      addToast('Prompt Required', 'Please enter a concept or token topic for AI generation', 'warning');
+      return;
+    }
+    setIsGeneratingAi(true);
+    try {
+      const res = await api.generateAiToken(aiPrompt.trim());
+      if (res.success && res.aiData) {
+        const data = res.aiData;
+        if (data.name) setTokenName(data.name);
+        if (data.symbol) setTokenSymbol(data.symbol.toUpperCase());
+        if (data.totalSupply) setTotalSupply(String(data.totalSupply));
+        if (data.decimals) setDecimals(Number(data.decimals));
+        if (data.logoUrl) setLogoUrl(data.logoUrl);
+        if (data.description) setAiDescription(data.description);
+        if (data.network) handleStandardChange(data.network as NetworkId);
+        addToast('AI Token Generated! ✨', `Created parameters and custom logo for ${data.name} (${data.symbol})`, 'success');
+      } else {
+        addToast('AI Generation Error', res.error || 'Failed to generate token concept', 'error');
+      }
+    } catch (err: any) {
+      addToast('AI Error', err.message || 'Error executing AI generation', 'error');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
 
   const handleStandardChange = (net: NetworkId) => {
     setNetwork(net);
@@ -191,7 +224,59 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
       {/* STEP 2: Parameters Form */}
       {step === 2 && (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
-          <h2 className="text-lg font-bold text-white">Configure Token Parameters</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-white">Configure Token Parameters</h2>
+              <p className="text-slate-400 text-xs">Fill parameters manually or use Gemini AI to generate concept & custom logo.</p>
+            </div>
+            <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-950/80 px-3 py-1 rounded-xl border border-cyan-500/30 self-start sm:self-center">
+              Target: {network.toUpperCase()} ({standard})
+            </span>
+          </div>
+
+          {/* AI TOKEN ARCHITECT & LOGO GENERATOR BOX */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-slate-950 to-indigo-950/80 border border-purple-500/40 shadow-xl space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
+              <h3 className="text-sm font-black text-white">Gemini AI Token & Logo Architect</h3>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase">
+                Auto-Generate
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Enter a token concept (e.g. <i>"Space Dragon coin for gaming metaverse"</i> or <i>"Cybernetic Wolf meme token on BNB"</i>) and AI will craft the token name, symbol, supply, utility description, and custom AI logo!
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <input
+                id="input_ai_prompt"
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAiGenerate()}
+                placeholder="Describe your token idea..."
+                className="w-full bg-slate-900 border border-purple-500/30 focus:border-purple-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none font-mono"
+              />
+              <button
+                id="btn_ai_generate_token"
+                type="button"
+                onClick={handleAiGenerate}
+                disabled={isGeneratingAi}
+                className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white font-extrabold text-xs shadow-lg shadow-purple-950 flex items-center justify-center gap-2 transition-all shrink-0"
+              >
+                <Sparkles className={`w-4 h-4 ${isGeneratingAi ? 'animate-spin' : ''}`} />
+                <span>{isGeneratingAi ? 'AI Crafting...' : 'Generate Token & AI Logo'}</span>
+              </button>
+            </div>
+
+            {aiDescription && (
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/20 text-xs text-purple-200 space-y-1">
+                <span className="font-bold text-purple-300 block">AI Generated Utility Description:</span>
+                <p>{aiDescription}</p>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -239,14 +324,26 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-300">Logo URL</label>
-              <input
-                id="input_token_logo"
-                type="text"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 font-mono"
-              />
+              <label className="text-xs font-semibold text-slate-300">Logo URL / AI Custom Emblem</label>
+              <div className="flex gap-3 items-center">
+                <input
+                  id="input_token_logo"
+                  type="text"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 font-mono"
+                />
+                <div className="w-11 h-11 rounded-xl bg-slate-950 border border-cyan-500/40 p-1 shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
+                  <img
+                    src={logoUrl}
+                    alt="Token Logo Preview"
+                    className="w-full h-full object-cover rounded-lg"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1.5 md:col-span-2">

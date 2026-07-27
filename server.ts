@@ -521,6 +521,94 @@ app.post('/api/v1/tokens/create', (req, res) => {
   });
 });
 
+// 8. AI Token Architect Endpoint (Generates token name, symbol, supply, decimals, description, and dynamic high-tech logo)
+app.post('/api/v1/ai/generate-token', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    let resultJson: any = null;
+
+    if (apiKey) {
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents: `You are the NEXORUM Web3 AI Token Architect. The user wants to create a real cryptocurrency token based on this concept: "${prompt}".
+Generate a clean JSON object with:
+- "name": Token Name (e.g. Cybernetic Wolf)
+- "symbol": 3-5 letter uppercase symbol (e.g. CWOLF)
+- "totalSupply": Suggested total supply integer string (e.g. 1000000000)
+- "decimals": Number (18 or 9)
+- "description": A high-impact 2-sentence utility description for whitepaper & DEX listings
+- "network": Recommended network ("nexorum", "bsc", "ethereum", "solana", "ton", or "polygon")
+- "logoStyle": Color description for logo (e.g. "cyan and gold neon shield")
+Return ONLY valid JSON without markdown tags.`,
+        });
+
+        const text = response.text || '';
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          resultJson = JSON.parse(jsonMatch[0]);
+        }
+      } catch (geminiErr) {
+        console.warn('Gemini API call warning, utilizing fallback generator:', geminiErr);
+      }
+    }
+
+    // Fallback AI generator if Gemini Key is absent or returned invalid json
+    if (!resultJson) {
+      const sanitized = prompt.trim();
+      const words = sanitized.split(' ').filter(Boolean);
+      const name = words.map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Token';
+      const symbol = (words[0] ? words[0].slice(0, 3).toUpperCase() : 'NEX') + (words[1] ? words[1].slice(0, 2).toUpperCase() : 'AI');
+      resultJson = {
+        name,
+        symbol,
+        totalSupply: '100000000',
+        decimals: 18,
+        description: `Next-generation decentralized token powering the ${sanitized} ecosystem on NEXORUM Web3 Engine.`,
+        network: 'nexorum',
+        logoStyle: 'cyan cyber glow',
+      };
+    }
+
+    // Generate dynamic SVG data URI for custom token logo
+    const bgColors = ['#0f172a', '#1e1b4b', '#022c22', '#311042', '#0c4a6e'];
+    const accentColors = ['#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+    const randomBg = bgColors[Math.floor(Math.random() * bgColors.length)];
+    const randomAccent = accentColors[Math.floor(Math.random() * accentColors.length)];
+    const sym = (resultJson.symbol || 'NEX').slice(0, 4);
+
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${randomAccent}" />
+          <stop offset="100%" stop-color="${randomBg}" />
+        </linearGradient>
+      </defs>
+      <rect width="200" height="200" rx="48" fill="url(#grad)" />
+      <circle cx="100" cy="100" r="70" fill="none" stroke="${randomAccent}" stroke-width="4" stroke-dasharray="10 5" />
+      <text x="100" y="112" font-family="system-ui, sans-serif" font-size="42" font-weight="900" fill="#ffffff" text-anchor="middle">${sym}</text>
+    </svg>`;
+
+    const logoUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
+
+    res.json({
+      success: true,
+      aiData: {
+        ...resultJson,
+        logoUrl,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to generate AI token concept' });
+  }
+});
+
 // 8. Marketplace Items & Purchase
 app.get('/api/v1/marketplace', (req, res) => {
   res.json({ success: true, items: db.marketplaceItems });

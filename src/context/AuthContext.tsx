@@ -22,45 +22,36 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>({
-    id: 'usr_nex_982341',
-    telegramId: '772183941',
-    telegramUsername: 'cyber_trader',
-    email: 'alex.cyber@nexorum.os',
-    phone: '+1 (555) 019-2834',
-    username: 'Alex Cyber',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-    role: 'USER',
-    primaryWallet: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    wallets: [
-      {
-        id: 'w_1',
-        address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-        network: 'ethereum',
-        provider: 'metamask',
-        providerName: 'MetaMask',
-        isPrimary: true,
-        balanceUsd: 14850.50,
-        nativeBalance: '4.25 ETH',
-        connectedAt: new Date().toISOString(),
-      },
-      {
-        id: 'w_2',
-        address: 'EQA0xNEXORUM_TON_WALLET_ADDR_99218',
-        network: 'ton',
-        provider: 'tonkeeper',
-        providerName: 'Tonkeeper',
-        isPrimary: false,
-        balanceUsd: 3200.00,
-        nativeBalance: '500 TON',
-        connectedAt: new Date().toISOString(),
-      },
-    ],
-    achievementsCount: 7,
-    referralCode: 'NEX-CYBER-99',
-    referralsCount: 24,
-    referralEarningsUsd: 1240.50,
-    createdAt: new Date().toISOString(),
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    let savedWallets: ConnectedWallet[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const item = localStorage.getItem('nexorum_user_wallets');
+        if (item) {
+          savedWallets = JSON.parse(item);
+        }
+      } catch (e) {
+        console.warn('Failed to parse saved wallets:', e);
+      }
+    }
+
+    return {
+      id: 'usr_nex_982341',
+      telegramId: '772183941',
+      telegramUsername: 'cyber_trader',
+      email: 'alex.cyber@nexorum.os',
+      phone: '+1 (555) 019-2834',
+      username: 'Alex Cyber',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+      role: 'USER',
+      primaryWallet: savedWallets[0]?.address || '',
+      wallets: savedWallets,
+      achievementsCount: 7,
+      referralCode: 'NEX-CYBER-99',
+      referralsCount: 24,
+      referralEarningsUsd: 1240.50,
+      createdAt: new Date().toISOString(),
+    };
   });
 
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
@@ -128,10 +119,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!prev) return null;
       const exists = prev.wallets.some((w) => w.address.toLowerCase() === wallet.address.toLowerCase());
       if (exists) return prev;
+      const newWallets = [...prev.wallets, wallet];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nexorum_user_wallets', JSON.stringify(newWallets));
+      }
       return {
         ...prev,
         primaryWallet: wallet.address,
-        wallets: [...prev.wallets, wallet],
+        wallets: newWallets,
       };
     });
   };
@@ -141,6 +136,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser((prev) => {
       if (!prev) return null;
       const updated = prev.wallets.filter((w) => w.id !== walletId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nexorum_user_wallets', JSON.stringify(updated));
+      }
       return {
         ...prev,
         primaryWallet: updated[0]?.address || '',
@@ -151,6 +149,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearDemoWallets = () => {
     if (!user) return;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexorum_user_wallets', JSON.stringify([]));
+    }
     setUser((prev) => {
       if (!prev) return null;
       return {

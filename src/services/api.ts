@@ -180,4 +180,13 @@ export const api = {
     });
     return res.json();
   },
+
+  async generateAiToken(prompt: string) {
+    const res = await fetch('/api/v1/ai/generate-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    return res.json();
+  },
 };
