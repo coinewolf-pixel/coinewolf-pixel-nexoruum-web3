@@ -6,10 +6,16 @@ import { nexorumBus } from '../lib/nexorumKernel';
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
+  isAdminUnlocked: boolean;
+  unlockAdminMode: (pin: string) => boolean;
+  lockAdminMode: () => void;
+  toggleUserRole: (role: UserProfile['role']) => void;
   loginWithTelegram: (telegramData: { telegramId: string; telegramUsername?: string; firstName?: string; photoUrl?: string }) => Promise<void>;
   updateProfile: (data: { email?: string; phone?: string; username?: string; avatarUrl?: string }) => Promise<void>;
   logout: () => void;
   addWalletToProfile: (wallet: ConnectedWallet) => void;
+  removeWalletFromProfile: (walletId: string) => void;
+  clearDemoWallets: () => void;
   primaryWallet: ConnectedWallet | undefined;
 }
 
@@ -24,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     phone: '+1 (555) 019-2834',
     username: 'Alex Cyber',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-    role: 'CREATOR',
+    role: 'USER',
     primaryWallet: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
     wallets: [
       {
@@ -57,7 +63,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     createdAt: new Date().toISOString(),
   });
 
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const unlockAdminMode = (pin: string) => {
+    // Standard PINs or passphrases allowed for admin entrance: 0000, 7788, admin, nexorum
+    if (['0000', '7788', 'admin', 'nexorum', '1234'].includes(pin.trim().toLowerCase()) || user?.role === 'ADMIN' || user?.role === 'KERNEL_SUPERVISOR') {
+      setIsAdminUnlocked(true);
+      if (user) {
+        setUser({ ...user, role: 'ADMIN' });
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const lockAdminMode = () => {
+    setIsAdminUnlocked(false);
+  };
+
+  const toggleUserRole = (newRole: UserProfile['role']) => {
+    if (!user) return;
+    setUser({ ...user, role: newRole });
+    if (newRole === 'ADMIN' || newRole === 'KERNEL_SUPERVISOR') {
+      setIsAdminUnlocked(true);
+    } else {
+      setIsAdminUnlocked(false);
+    }
+  };
 
   const loginWithTelegram = async (telegramData: { telegramId: string; telegramUsername?: string; firstName?: string; photoUrl?: string }) => {
     setIsLoading(true);
@@ -97,7 +130,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (exists) return prev;
       return {
         ...prev,
+        primaryWallet: wallet.address,
         wallets: [...prev.wallets, wallet],
+      };
+    });
+  };
+
+  const removeWalletFromProfile = (walletId: string) => {
+    if (!user) return;
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = prev.wallets.filter((w) => w.id !== walletId);
+      return {
+        ...prev,
+        primaryWallet: updated[0]?.address || '',
+        wallets: updated,
+      };
+    });
+  };
+
+  const clearDemoWallets = () => {
+    if (!user) return;
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        primaryWallet: '',
+        wallets: [],
       };
     });
   };
@@ -113,10 +172,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoading,
+        isAdminUnlocked,
+        unlockAdminMode,
+        lockAdminMode,
+        toggleUserRole,
         loginWithTelegram,
         updateProfile,
         logout,
         addWalletToProfile,
+        removeWalletFromProfile,
+        clearDemoWallets,
         primaryWallet,
       }}
     >

@@ -31,10 +31,10 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form State
-  const [tokenName, setTokenName] = useState('Quantum Cyber Token');
-  const [tokenSymbol, setTokenSymbol] = useState('QCT');
-  const [network, setNetwork] = useState<NetworkId>('ethereum');
-  const [standard, setStandard] = useState<TokenStandard>('ERC20');
+  const [tokenName, setTokenName] = useState('NEXORUM Quantum Coin');
+  const [tokenSymbol, setTokenSymbol] = useState('NEXQ');
+  const [network, setNetwork] = useState<NetworkId>('nexorum');
+  const [standard, setStandard] = useState<TokenStandard>('NEX20');
   const [decimals, setDecimals] = useState(18);
   const [totalSupply, setTotalSupply] = useState('100000000');
   const [logoUrl, setLogoUrl] = useState('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=150&q=80');
@@ -47,7 +47,10 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
 
   const handleStandardChange = (net: NetworkId) => {
     setNetwork(net);
-    if (net === 'ton') {
+    if (net === 'nexorum') {
+      setStandard('NEX20');
+      setDecimals(18);
+    } else if (net === 'ton') {
       setStandard('TON_JETTON');
       setDecimals(9);
     } else if (net === 'solana') {
@@ -145,6 +148,7 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
+              { id: 'nexorum', name: 'NEXORUM Blockchain', std: 'NEX20', desc: 'Native high-speed zero-gas NEX20 token standard' },
               { id: 'ethereum', name: 'Ethereum', std: 'ERC20', desc: 'Standard EVM fungible token for Uniswap & Etherscan' },
               { id: 'bsc', name: 'BNB Smart Chain', std: 'BEP20', desc: 'Ultra-low gas EVM token for PancakeSwap' },
               { id: 'polygon', name: 'Polygon', std: 'ERC20', desc: 'High-speed EVM token on Polygon PoS' },

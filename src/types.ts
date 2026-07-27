@@ -1,4 +1,4 @@
-export type NetworkId = 'ethereum' | 'bsc' | 'polygon' | 'arbitrum' | 'base' | 'solana' | 'ton';
+export type NetworkId = 'nexorum' | 'ethereum' | 'bsc' | 'polygon' | 'arbitrum' | 'base' | 'solana' | 'ton';
 
 export interface NetworkInfo {
   id: NetworkId;
@@ -55,7 +55,7 @@ export interface UserProfile {
   createdAt: string;
 }
 
-export type TokenStandard = 'ERC20' | 'BEP20' | 'SPL' | 'TON_JETTON';
+export type TokenStandard = 'NEX20' | 'ERC20' | 'BEP20' | 'SPL' | 'TON_JETTON';
 
 export interface TokenItem {
   id: string;
@@ -142,6 +142,7 @@ export interface AppNotification {
 
 export interface AdminSettings {
   walletConnectProjectId: string;
+  cloudflareWorkerUrl: string;
   rpcUrls: Record<NetworkId, string>;
   coingeckoApiKey: string;
   coinmarketcapApiKey: string;
@@ -168,3 +169,18 @@ export interface SystemStats {
   kernelVersion: string;
   uptimeSeconds: number;
 }
+
+export interface AirdropCampaign {
+  id: string;
+  title: string;
+  symbol: string;
+  amountPerUser: string;
+  totalPool: string;
+  remainingPool: string;
+  network: NetworkId;
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  description: string;
+  claimedUserIds: string[];
+  createdAt: string;
+}
+

@@ -118,4 +118,52 @@ export const api = {
     });
     return res.json();
   },
+
+  async getAirdrops() {
+    const res = await fetch('/api/v1/airdrops');
+    return res.json();
+  },
+
+  async createAirdrop(payload: {
+    title: string;
+    symbol: string;
+    amountPerUser: string;
+    totalPool: string;
+    network: string;
+    description: string;
+  }) {
+    const res = await fetch('/api/v1/airdrops/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  },
+
+  async updateAirdropStatus(airdropId: string, status: 'ACTIVE' | 'PAUSED' | 'COMPLETED') {
+    const res = await fetch('/api/v1/airdrops/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ airdropId, status }),
+    });
+    return res.json();
+  },
+
+  async distributeAirdrop(airdropId: string) {
+    const res = await fetch('/api/v1/airdrops/distribute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ airdropId }),
+    });
+    return res.json();
+  },
+
+  async claimAirdrop(airdropId: string, userId: string) {
+    const res = await fetch('/api/v1/airdrops/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ airdropId, userId }),
+    });
+    return res.json();
+  },
 };

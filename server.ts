@@ -57,6 +57,29 @@ const db = {
   ],
   tokens: [
     {
+      id: 'tok_nex_0',
+      name: 'NEXORUM Native Coin',
+      symbol: 'NEX',
+      network: 'nexorum',
+      standard: 'NEX20',
+      decimals: 18,
+      totalSupply: '1000000000',
+      contractAddress: '0x0000000000000000000000000000000000007780',
+      ownerAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+      ownerUserId: 'usr_nex_982341',
+      logoUrl: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=150&q=80',
+      priceUsd: 12.45,
+      priceChange24h: 24.8,
+      marketCapUsd: 12450000000,
+      volume24hUsd: 84200000,
+      createdAt: new Date().toISOString(),
+      isHot: true,
+      isNew: true,
+      isVerified: true,
+      liquidityPoolAddress: '0x7780000000000000000000000000000000007780',
+      sparkline: [10.2, 10.8, 11.1, 11.5, 11.9, 12.1, 12.45],
+    },
+    {
       id: 'tok_nex_1',
       name: 'NEXORUM Quantum Engine',
       symbol: 'NEX',
@@ -221,9 +244,26 @@ const db = {
       createdAt: new Date().toISOString(),
     },
   ],
+  airdrops: [
+    {
+      id: 'airdrop_nex_1',
+      title: 'NEXORUM Blockchain Genesis Airdrop',
+      symbol: 'NEX',
+      amountPerUser: '500',
+      totalPool: '1000000',
+      remainingPool: '850000',
+      network: 'nexorum',
+      status: 'ACTIVE',
+      description: 'Official NEXORUM Blockchain Genesis Airdrop for all ecosystem participants and connected wallets.',
+      claimedUserIds: [],
+      createdAt: new Date().toISOString(),
+    },
+  ],
   settings: {
     walletConnectProjectId: process.env.WALLETCONNECT_PROJECT_ID || '8a381920392019382019382',
+    cloudflareWorkerUrl: 'https://nexoria778.coinewolf.workers.dev/',
     rpcUrls: {
+      nexorum: 'https://rpc.nexorum.network',
       ethereum: 'https://eth-mainnet.g.alchemy.com/v2/demo',
       bsc: 'https://bsc-dataseed.binance.org/',
       polygon: 'https://polygon-rpc.com/',
@@ -342,6 +382,7 @@ app.get('/api/v1/blockchain/networks', (req, res) => {
   res.json({
     success: true,
     networks: [
+      { id: 'nexorum', name: 'NEXORUM Chain', symbol: 'NEX', icon: 'nexorum', chainId: 7780, rpcUrl: db.settings.rpcUrls.nexorum, explorerUrl: 'https://explorer.nexorum.network', gasPriceGwei: 0.01, blockHeight: 1892014, isPopular: true },
       { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: 'eth', chainId: 1, rpcUrl: db.settings.rpcUrls.ethereum, explorerUrl: 'https://etherscan.io', gasPriceGwei: 14.2, blockHeight: 19824150, isPopular: true },
       { id: 'bsc', name: 'BNB Smart Chain', symbol: 'BNB', icon: 'bnb', chainId: 56, rpcUrl: db.settings.rpcUrls.bsc, explorerUrl: 'https://bscscan.com', gasPriceGwei: 3.0, blockHeight: 38291024, isPopular: true },
       { id: 'polygon', name: 'Polygon', symbol: 'POL', icon: 'polygon', chainId: 137, rpcUrl: db.settings.rpcUrls.polygon, explorerUrl: 'https://polygonscan.com', gasPriceGwei: 31.8, blockHeight: 56201948, isPopular: true },
@@ -582,6 +623,167 @@ app.post('/api/v1/notifications/read', (req, res) => {
   const notif = db.notifications.find((n) => n.id === id);
   if (notif) notif.isRead = true;
   res.json({ success: true });
+});
+
+// 12. Airdrops Management API
+app.get('/api/v1/airdrops', (req, res) => {
+  res.json({ success: true, airdrops: db.airdrops });
+});
+
+app.post('/api/v1/airdrops/create', (req, res) => {
+  const { title, symbol, amountPerUser, totalPool, network, description } = req.body;
+  const newAirdrop = {
+    id: `airdrop_${Date.now()}`,
+    title: title || 'NEXORUM Community Airdrop',
+    symbol: symbol || 'NEX',
+    amountPerUser: amountPerUser || '500',
+    totalPool: totalPool || '1000000',
+    remainingPool: totalPool || '1000000',
+    network: network || 'nexorum',
+    status: 'ACTIVE',
+    description: description || 'Claim free tokens distributed by NEXORUM Blockchain Admin.',
+    claimedUserIds: [],
+    createdAt: new Date().toISOString(),
+  };
+  db.airdrops.unshift(newAirdrop);
+
+  // Notify all users
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    title: `🎁 New Airdrop Launched: ${newAirdrop.title}`,
+    message: `Admin launched a new airdrop! Claim ${newAirdrop.amountPerUser} ${newAirdrop.symbol} tokens now.`,
+    type: 'SYSTEM',
+    isRead: false,
+    createdAt: new Date().toISOString(),
+  });
+
+  db.auditLogs.unshift({
+    id: `log_${Date.now()}`,
+    action: 'AIRDROP_CREATED',
+    category: 'ADMIN',
+    details: `Created airdrop campaign ${newAirdrop.title} (${newAirdrop.symbol}) with total pool of ${newAirdrop.totalPool}.`,
+    ipAddress: '127.0.0.1',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, airdrop: newAirdrop });
+});
+
+app.post('/api/v1/airdrops/status', (req, res) => {
+  const { airdropId, status } = req.body;
+  const airdrop = db.airdrops.find((a) => a.id === airdropId);
+  if (airdrop) {
+    airdrop.status = status;
+    db.auditLogs.unshift({
+      id: `log_${Date.now()}`,
+      action: 'AIRDROP_STATUS_CHANGED',
+      category: 'ADMIN',
+      details: `Airdrop ${airdrop.title} status updated to ${status}.`,
+      ipAddress: '127.0.0.1',
+      status: 'SUCCESS',
+      timestamp: new Date().toISOString(),
+    });
+  }
+  res.json({ success: true, airdrop });
+});
+
+app.post('/api/v1/airdrops/distribute', (req, res) => {
+  const { airdropId } = req.body;
+  const airdrop = db.airdrops.find((a) => a.id === airdropId);
+  if (!airdrop) return res.status(404).json({ error: 'Airdrop campaign not found' });
+
+  let distributedCount = 0;
+  db.users.forEach((user) => {
+    if (!airdrop.claimedUserIds.includes(user.id)) {
+      airdrop.claimedUserIds.push(user.id);
+      distributedCount++;
+
+      // Record transaction
+      db.transactions.unshift({
+        id: `tx_${Date.now()}_${user.id}`,
+        userId: user.id,
+        hash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+        network: airdrop.network,
+        type: 'BUY_MARKETPLACE',
+        status: 'CONFIRMED',
+        amount: airdrop.amountPerUser,
+        symbol: airdrop.symbol,
+        amountUsd: parseFloat(airdrop.amountPerUser) * (airdrop.symbol === 'NEX' ? 12.45 : 1),
+        fromAddress: '0x0000000000000000000000000000000000007780',
+        toAddress: user.primaryWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+        blockNumber: Math.floor(19000000 + Math.random() * 1000000),
+        createdAt: new Date().toISOString(),
+        gasFeeUsd: 0.00,
+      });
+
+      // Send notification
+      db.notifications.unshift({
+        id: `notif_${Date.now()}_${user.id}`,
+        userId: user.id,
+        title: `🎁 Airdrop Received: ${airdrop.amountPerUser} ${airdrop.symbol}!`,
+        message: `Admin has sent ${airdrop.amountPerUser} ${airdrop.symbol} tokens directly to your connected wallet!`,
+        type: 'WALLET',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  });
+
+  airdrop.status = 'COMPLETED';
+
+  db.auditLogs.unshift({
+    id: `log_${Date.now()}`,
+    action: 'AIRDROP_MASS_DISPATCH',
+    category: 'ADMIN',
+    details: `Dispatched ${airdrop.amountPerUser} ${airdrop.symbol} each to all ${distributedCount} user accounts on NEXORUM Blockchain.`,
+    ipAddress: '127.0.0.1',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: `Successfully distributed Airdrop to ${distributedCount} users!`,
+    airdrop,
+  });
+});
+
+app.post('/api/v1/airdrops/claim', (req, res) => {
+  const { airdropId, userId } = req.body;
+  const airdrop = db.airdrops.find((a) => a.id === airdropId);
+  if (!airdrop) return res.status(404).json({ error: 'Airdrop not found' });
+
+  if (airdrop.claimedUserIds.includes(userId)) {
+    return res.status(400).json({ error: 'Already claimed this airdrop' });
+  }
+
+  airdrop.claimedUserIds.push(userId);
+  const remaining = Math.max(0, parseFloat(airdrop.remainingPool) - parseFloat(airdrop.amountPerUser));
+  airdrop.remainingPool = remaining.toString();
+
+  db.transactions.unshift({
+    id: `tx_${Date.now()}`,
+    userId,
+    hash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+    network: airdrop.network,
+    type: 'BUY_MARKETPLACE',
+    status: 'CONFIRMED',
+    amount: airdrop.amountPerUser,
+    symbol: airdrop.symbol,
+    amountUsd: parseFloat(airdrop.amountPerUser) * (airdrop.symbol === 'NEX' ? 12.45 : 1),
+    fromAddress: '0x0000000000000000000000000000000000007780',
+    toAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    blockNumber: Math.floor(19000000 + Math.random() * 1000000),
+    createdAt: new Date().toISOString(),
+    gasFeeUsd: 0.00,
+  });
+
+  res.json({
+    success: true,
+    message: `Successfully claimed ${airdrop.amountPerUser} ${airdrop.symbol}!`,
+    airdrop,
+  });
 });
 
 // --- VITE MIDDLEWARE & STATIC SERVING ---

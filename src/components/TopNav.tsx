@@ -10,6 +10,10 @@ import {
   Globe,
   Plus,
   Zap,
+  ExternalLink,
+  ShieldAlert,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
@@ -24,7 +28,7 @@ interface TopNavProps {
 
 export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal }) => {
   const { activeWallet, activeNetwork, networks, switchNetwork, openWalletModal } = useWallet();
-  const { user } = useAuth();
+  const { user, isAdminUnlocked, toggleUserRole } = useAuth();
   const { unreadCount, openDrawer } = useNotifications();
 
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
@@ -32,14 +36,14 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
   return (
     <header className="h-16 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-6 flex items-center justify-between sticky top-0 z-30">
       {/* Global Search Bar */}
-      <div className="flex items-center gap-4 flex-1 max-w-md">
+      <div className="flex items-center gap-3 flex-1 max-w-md">
         <button
           id="btn_global_search_trigger"
           onClick={() => setActiveTab('search')}
           className="w-full flex items-center gap-3 bg-slate-900/80 hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800/80 hover:border-slate-700 px-3.5 py-2 rounded-xl text-sm transition-all duration-200 group"
         >
           <Search className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
-          <span className="text-slate-400">Search tokens, wallets, NFTs, projects...</span>
+          <span className="text-slate-400 truncate">Search tokens, wallets, NFTs...</span>
           <kbd className="ml-auto hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 bg-slate-800 rounded border border-slate-700">
             ⌘K
           </kbd>
@@ -48,6 +52,18 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
+        {/* Admin Badge - Only shown when admin mode is explicitly unlocked */}
+        {isAdminUnlocked && (
+          <button
+            id="btn_top_admin_mode_badge"
+            onClick={() => setActiveTab('admin')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Admin Unlocked</span>
+          </button>
+        )}
+
         {/* Dynamic Network Switcher */}
         <div className="relative">
           <button

@@ -12,9 +12,14 @@ import {
   Layers,
   ChevronRight,
   Sparkles,
+  Lock,
+  Unlock,
+  ExternalLink,
+  ShieldCheck,
 } from 'lucide-react';
 import { NEXORUM_PLUGIN_MANIFEST } from '../lib/nexorumKernel';
 import { cn } from '../lib/utils';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -33,6 +38,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+  const { user, isAdminUnlocked } = useAuth();
+
+  const userMenuItems = NEXORUM_PLUGIN_MANIFEST.menu.filter((item) => item.id !== 'admin');
+  const adminMenuItem = NEXORUM_PLUGIN_MANIFEST.menu.find((item) => item.id === 'admin');
+
   return (
     <aside className="w-64 bg-slate-950/80 backdrop-blur-xl border-r border-slate-800/80 flex flex-col h-screen sticky top-0 z-40 select-none">
       {/* OS Kernel Header */}
@@ -55,74 +65,129 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         </div>
       </div>
 
-      {/* Kernel Handshake Badge */}
-      <div className="mx-3 my-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
+      {/* Web3 Network Sync Badge */}
+      <div className="mx-3 my-2 p-2.5 rounded-xl bg-slate-900/90 border border-emerald-500/30 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="relative flex h-2 w-2 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
           </span>
-          <span className="text-slate-300 font-medium">NEXORUM Kernel</span>
+          <div className="truncate">
+            <span className="text-white font-bold block text-[11px]">NEXORUM Chain Engine</span>
+            <span className="text-[9px] text-emerald-400 font-mono truncate block">
+              Web3 Mainnet Sync Active
+            </span>
+          </div>
         </div>
-        <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/50">
-          CONNECTED
-        </span>
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        <div className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">
-          OS Modules
+      <nav className="flex-1 px-3 py-2 space-y-4 overflow-y-auto">
+        {/* Regular User Workspace */}
+        <div className="space-y-1">
+          <div className="px-3 py-1 text-[10px] font-semibold tracking-wider text-slate-500 uppercase flex items-center justify-between">
+            <span>User Workspace</span>
+            <span className="text-[9px] text-cyan-400 font-mono">ACTIVE</span>
+          </div>
+          {userMenuItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                id={`nav_btn_${item.id}`}
+                onClick={() => setActiveTab(item.id)}
+                className={cn(
+                  'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative',
+                  isActive
+                    ? 'bg-gradient-to-r from-cyan-500/15 to-blue-600/10 text-cyan-300 border border-cyan-500/30 shadow-md shadow-cyan-950/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      'transition-colors duration-200',
+                      isActive ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'
+                    )}
+                  >
+                    {ICON_MAP[item.icon] || <Layers className="w-5 h-5" />}
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {item.badge && (
+                    <span
+                      className={cn(
+                        'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider',
+                        item.badge === 'HOT'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      )}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                  <ChevronRight
+                    className={cn(
+                      'w-4 h-4 transition-transform duration-200',
+                      isActive ? 'text-cyan-400 translate-x-0.5' : 'text-slate-600 opacity-0 group-hover:opacity-100'
+                    )}
+                  />
+                </div>
+              </button>
+            );
+          })}
         </div>
-        {NEXORUM_PLUGIN_MANIFEST.menu.map((item) => {
-          const isActive = activeTab === item.id;
-          return (
+
+        {/* Separated Administration Gate - Hidden from regular clients */}
+        {adminMenuItem && (isAdminUnlocked || activeTab === 'admin') && (
+          <div className="pt-2 border-t border-slate-800/80 space-y-1">
+            <div className="px-3 py-1 text-[10px] font-semibold tracking-wider text-rose-400 uppercase flex items-center justify-between">
+              <span>Admin Control Gate</span>
+              {isAdminUnlocked ? (
+                <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
+                  <Unlock className="w-3 h-3" /> UNLOCKED
+                </span>
+              ) : (
+                <span className="text-[9px] text-rose-400 font-mono flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> LOCKED
+                </span>
+              )}
+            </div>
+
             <button
-              key={item.id}
-              id={`nav_btn_${item.id}`}
-              onClick={() => setActiveTab(item.id)}
+              id={`nav_btn_${adminMenuItem.id}`}
+              onClick={() => setActiveTab('admin')}
               className={cn(
                 'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative',
-                isActive
-                  ? 'bg-gradient-to-r from-cyan-500/15 to-blue-600/10 text-cyan-300 border border-cyan-500/30 shadow-md shadow-cyan-950/40'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                activeTab === 'admin'
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-md shadow-rose-950/40'
+                  : 'text-slate-400 hover:text-rose-300 hover:bg-slate-900/60 border border-transparent'
               )}
             >
               <div className="flex items-center gap-3">
                 <span
                   className={cn(
                     'transition-colors duration-200',
-                    isActive ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'
+                    activeTab === 'admin' ? 'text-rose-400' : 'text-rose-500/80 group-hover:text-rose-300'
                   )}
                 >
-                  {ICON_MAP[item.icon] || <Layers className="w-5 h-5" />}
+                  <ShieldAlert className="w-5 h-5" />
                 </span>
-                <span>{item.label}</span>
+                <span>System Admin Panel</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                {item.badge && (
-                  <span
-                    className={cn(
-                      'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider',
-                      item.badge === 'HOT'
-                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    )}
-                  >
-                    {item.badge}
-                  </span>
+              <div className="flex items-center gap-1.5">
+                {isAdminUnlocked ? (
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-rose-400" />
                 )}
-                <ChevronRight
-                  className={cn(
-                    'w-4 h-4 transition-transform duration-200',
-                    isActive ? 'text-cyan-400 translate-x-0.5' : 'text-slate-600 opacity-0 group-hover:opacity-100'
-                  )}
-                />
               </div>
             </button>
-          );
-        })}
+          </div>
+        )}
       </nav>
 
       {/* AI Engine Status Banner */}
@@ -146,8 +211,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
 
       {/* Footer Info */}
       <div className="p-3 border-t border-slate-800/60 text-[11px] text-slate-500 flex items-center justify-between">
-        <span>NEXORUM Engine v1.0</span>
-        <span className="font-mono text-cyan-400/80">Edge Cloudflare</span>
+        <span>NEXORUM Web3 v1.0</span>
+        <span className="font-mono text-emerald-400 flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Mainnet Sync</span>
+        </span>
       </div>
     </aside>
   );

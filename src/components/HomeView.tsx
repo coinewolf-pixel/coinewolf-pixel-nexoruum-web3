@@ -15,11 +15,14 @@ import {
   Award,
   ShieldCheck,
   CheckCircle2,
+  Gift,
+  Send,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
-import { TokenItem, TransactionRecord } from '../types';
+import { TokenItem, TransactionRecord, AirdropCampaign } from '../types';
 import { formatCurrency, formatNumber, formatAddress, timeAgo } from '../lib/utils';
 
 interface HomeViewProps {
@@ -29,22 +32,50 @@ interface HomeViewProps {
 export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
   const { activeWallet, openWalletModal } = useWallet();
   const { user } = useAuth();
+  const { addToast } = useNotifications();
   const [tokens, setTokens] = useState<TokenItem[]>([]);
-  const [recentTxs, setRecentTxs] = useState<TransactionRecord[]>([]);
+  const [airdrops, setAirdrops] = useState<AirdropCampaign[]>([]);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+
+  const loadData = async () => {
+    try {
+      const resTok = await api.getTokens();
+      if (resTok.success && resTok.tokens) setTokens(resTok.tokens);
+
+      const resAir = await api.getAirdrops();
+      if (resAir.success && resAir.airdrops) setAirdrops(resAir.airdrops);
+    } catch (err) {
+      console.error('Failed to load home data:', err);
+    }
+  };
 
   useEffect(() => {
-    api.getTokens().then((res) => {
-      if (res.success && res.tokens) setTokens(res.tokens);
-    });
-
-    api.getAdminLogs().then((res) => {
-      if (res.success && res.stats) {
-        // Load recent txs
-      }
-    });
+    loadData();
   }, []);
 
-  const totalPortfolioUsd = user?.wallets.reduce((acc, w) => acc + w.balanceUsd, 0) || 18050.50;
+  const handleClaimAirdrop = async (airdropId: string) => {
+    if (!user) {
+      addToast('Wallet Required', 'Please connect your wallet to claim airdrops.', 'warning');
+      openWalletModal();
+      return;
+    }
+    setClaimingId(airdropId);
+    try {
+      const res = await api.claimAirdrop(airdropId, user.id);
+      if (res.success) {
+        addToast('Airdrop Claimed! 🎉', res.message, 'success');
+        loadData();
+      } else {
+        addToast('Claim Error', res.error || 'Failed to claim airdrop', 'error');
+      }
+    } catch (err: any) {
+      addToast('Claim Error', err.message || 'Error executing claim', 'error');
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  const totalPortfolioUsd = user?.wallets ? user.wallets.reduce((acc, w) => acc + w.balanceUsd, 0) : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -69,13 +100,22 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
             </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 mb-6">
-            <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight">
-              {formatCurrency(totalPortfolioUsd)}
-            </h1>
-            <span className="text-slate-400 text-sm font-medium">
-              Across {user?.wallets.length || 2} Connected Wallets
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight">
+                {formatCurrency(totalPortfolioUsd)}
+              </h1>
+              <span className="text-slate-400 text-sm font-medium mt-1 block">
+                Across {user?.wallets.length || 0} Connected Wallets
+              </span>
+            </div>
+            <button
+              onClick={openWalletModal}
+              className="py-2.5 px-4 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition-all flex items-center gap-2 self-start sm:self-center shrink-0"
+            >
+              <Wallet className="w-4 h-4" />
+              <span>{user?.wallets.length ? 'Manage Wallets' : 'Connect Real Wallet'}</span>
+            </button>
           </div>
 
           {/* Mini Portfolio Sparkline Visual */}
@@ -149,6 +189,63 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
           </div>
         </div>
       </div>
+
+      {/* ACTIVE AIRDROPS BANNER SECTION */}
+      {airdrops.filter((a) => a.status === 'ACTIVE').length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Gift className="w-5 h-5 text-purple-400 animate-bounce" />
+            <h2 className="text-xl font-black text-white">Active NEXORUM Token Airdrops</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {airdrops
+              .filter((a) => a.status === 'ACTIVE')
+              .map((air) => {
+                const isClaimed = user && air.claimedUserIds.includes(user.id);
+                return (
+                  <div
+                    key={air.id}
+                    className="p-5 rounded-3xl bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950/80 border border-purple-500/30 shadow-xl flex flex-col justify-between gap-4 relative overflow-hidden"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-black text-white text-base">{air.title}</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-bold">
+                          {air.amountPerUser} {air.symbol}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">{air.description}</p>
+                      <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 pt-1">
+                        <span>Network: <strong className="text-cyan-300">{air.network.toUpperCase()}</strong></span>
+                        <span>Pool: <strong className="text-emerald-400">{air.remainingPool} {air.symbol}</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-purple-500/20 flex items-center justify-between gap-3">
+                      {isClaimed ? (
+                        <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold font-mono">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Airdrop Claimed to Wallet</span>
+                        </div>
+                      ) : (
+                        <button
+                          id={`btn_claim_airdrop_${air.id}`}
+                          onClick={() => handleClaimAirdrop(air.id)}
+                          disabled={claimingId === air.id}
+                          className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-950 flex items-center justify-center gap-2 transition-all"
+                        >
+                          <Gift className={`w-4 h-4 ${claimingId === air.id ? 'animate-spin' : ''}`} />
+                          <span>{claimingId === air.id ? 'Claiming Tokens...' : `Claim ${air.amountPerUser} ${air.symbol}`}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* NEW TOKENS & HOT TOKENS CAROUSEL / TABLE */}
       <div className="space-y-4">

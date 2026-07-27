@@ -19,7 +19,7 @@ import { useWallet } from '../context/WalletContext';
 import { formatAddress, formatCurrency } from '../lib/utils';
 
 export const ProfileView: React.FC = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, removeWalletFromProfile, clearDemoWallets } = useAuth();
   const { openWalletModal } = useWallet();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -128,41 +128,67 @@ export const ProfileView: React.FC = () => {
             <Wallet className="w-5 h-5 text-cyan-400" />
             <h3 className="font-bold text-white text-base">Connected Web3 & TON Wallets</h3>
           </div>
-          <button
-            id="btn_profile_add_wallet"
-            onClick={openWalletModal}
-            className="py-1.5 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Wallet</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearDemoWallets}
+              className="py-1.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all"
+            >
+              Clear Demo Wallets
+            </button>
+            <button
+              id="btn_profile_add_wallet"
+              onClick={openWalletModal}
+              className="py-1.5 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Connect Wallet</span>
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {user?.wallets.map((w) => (
-            <div
-              key={w.id}
-              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between font-mono text-xs"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white">{w.providerName}</span>
-                  {w.isPrimary && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
-                      Primary
-                    </span>
-                  )}
+        {user?.wallets && user.wallets.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {user.wallets.map((w) => (
+              <div
+                key={w.id}
+                className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between font-mono text-xs"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white">{w.providerName}</span>
+                    {w.isPrimary && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                        Primary
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-400 mt-1">{formatAddress(w.address)}</p>
+                  <span className="text-[10px] text-slate-500 uppercase">{w.network} network</span>
                 </div>
-                <p className="text-slate-400 mt-1">{formatAddress(w.address)}</p>
-                <span className="text-[10px] text-slate-500 uppercase">{w.network} network</span>
+                <div className="text-right flex flex-col items-end gap-1">
+                  <p className="font-bold text-cyan-400">{formatCurrency(w.balanceUsd)}</p>
+                  <p className="text-[10px] text-slate-400">{w.nativeBalance}</p>
+                  <button
+                    onClick={() => removeWalletFromProfile(w.id)}
+                    className="text-[10px] text-rose-400 hover:text-rose-300 underline font-sans mt-0.5"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="font-bold text-cyan-400">{formatCurrency(w.balanceUsd)}</p>
-                <p className="text-[10px] text-slate-400">{w.nativeBalance}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 rounded-2xl bg-slate-950/60 border border-slate-800 text-center space-y-2">
+            <p className="text-xs text-slate-400">No Web3 wallets currently connected.</p>
+            <button
+              onClick={openWalletModal}
+              className="py-2 px-4 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs"
+            >
+              Connect Real Web3 Wallet Now
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Referral & Achievements */}
