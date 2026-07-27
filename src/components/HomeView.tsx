@@ -10,13 +10,19 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ChevronRight,
+  ChevronLeft,
   ExternalLink,
-  Newspaper,
   Award,
   ShieldCheck,
   CheckCircle2,
   Gift,
-  Send,
+  Boxes,
+  RotateCw,
+  Copy,
+  Check,
+  Calendar,
+  Coins,
+  Newspaper,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
@@ -35,7 +41,24 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
   const { addToast } = useNotifications();
   const [tokens, setTokens] = useState<TokenItem[]>([]);
   const [airdrops, setAirdrops] = useState<AirdropCampaign[]>([]);
-  const [claimingId, setClaimingId] = useState<string | null>(null);
+
+  // Daily Streak Airdrop State
+  const [dailyStatus, setDailyStatus] = useState<{
+    streak: number;
+    totalClaimed: number;
+    canClaimNow: boolean;
+    timeUntilNextClaimMs: number;
+    currentRewardNex: number;
+    schedule: number[];
+  } | null>(null);
+  const [claimingDaily, setClaimingDaily] = useState(false);
+  const [countdownText, setCountdownText] = useState('');
+
+  // 3D Panel State
+  const [activeTokenIndex, setActiveTokenIndex] = useState(0);
+  const [is3dAutoRotate, setIs3dAutoRotate] = useState(true);
+  const [showcaseMode, setShowcaseMode] = useState<'3d' | 'grid'>('3d');
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -44,6 +67,20 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
 
       const resAir = await api.getAirdrops();
       if (resAir.success && resAir.airdrops) setAirdrops(resAir.airdrops);
+
+      if (user) {
+        const resDaily = await api.getDailyAirdropStatus(user.id);
+        if (resDaily.success) {
+          setDailyStatus({
+            streak: resDaily.streak,
+            totalClaimed: resDaily.totalClaimed,
+            canClaimNow: resDaily.canClaimNow,
+            timeUntilNextClaimMs: resDaily.timeUntilNextClaimMs,
+            currentRewardNex: resDaily.currentRewardNex,
+            schedule: resDaily.schedule || [15, 25, 40, 60, 80, 110, 170],
+          });
+        }
+      }
     } catch (err) {
       console.error('Failed to load home data:', err);
     }
@@ -51,31 +88,76 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
 
   useEffect(() => {
     loadData();
-  }, []);
+    const interval = setInterval(loadData, 8000); // Auto-sync every 8s
+    return () => clearInterval(interval);
+  }, [user]);
 
-  const handleClaimAirdrop = async (airdropId: string) => {
+  // Countdown timer effect for daily claim cooldown
+  useEffect(() => {
+    if (!dailyStatus || dailyStatus.canClaimNow || dailyStatus.timeUntilNextClaimMs <= 0) {
+      setCountdownText('');
+      return;
+    }
+
+    let msLeft = dailyStatus.timeUntilNextClaimMs;
+    const timer = setInterval(() => {
+      msLeft -= 1000;
+      if (msLeft <= 0) {
+        clearInterval(timer);
+        setCountdownText('');
+        loadData();
+      } else {
+        const h = Math.floor(msLeft / (1000 * 60 * 60));
+        const m = Math.floor((msLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((msLeft % (1000 * 60)) / 1000);
+        setCountdownText(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [dailyStatus]);
+
+  // 3D Auto Rotate Timer
+  useEffect(() => {
+    if (!is3dAutoRotate || tokens.length === 0) return;
+    const autoRot = setInterval(() => {
+      setActiveTokenIndex((prev) => (prev + 1) % tokens.length);
+    }, 4000);
+    return () => clearInterval(autoRot);
+  }, [is3dAutoRotate, tokens.length]);
+
+  const handleClaimDailyAirdrop = async () => {
     if (!user) {
-      addToast('Wallet Required', 'Please connect your wallet to claim airdrops.', 'warning');
+      addToast('Wallet Required', 'Please connect your Web3 wallet to claim daily rewards.', 'warning');
       openWalletModal();
       return;
     }
-    setClaimingId(airdropId);
+
+    setClaimingDaily(true);
     try {
-      const res = await api.claimAirdrop(airdropId, user.id);
+      const res = await api.claimDailyAirdrop(user.id);
       if (res.success) {
-        addToast('Airdrop Claimed! 🎉', res.message, 'success');
+        addToast('Daily Reward Claimed! 🎉', res.message, 'success');
         loadData();
       } else {
-        addToast('Claim Error', res.error || 'Failed to claim airdrop', 'error');
+        addToast('Claim Error', res.error || 'Daily claim unavailable', 'error');
       }
     } catch (err: any) {
-      addToast('Claim Error', err.message || 'Error executing claim', 'error');
+      addToast('Claim Error', err.message || 'Error claiming daily reward', 'error');
     } finally {
-      setClaimingId(null);
+      setClaimingDaily(false);
     }
   };
 
+  const handleCopyContract = (address: string) => {
+    navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
+    addToast('Address Copied', 'Contract address copied to clipboard', 'info');
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
+
   const totalPortfolioUsd = user?.wallets ? user.wallets.reduce((acc, w) => acc + w.balanceUsd, 0) : 0;
+  const activeToken = tokens[activeTokenIndex] || tokens[0];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -190,62 +272,290 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
         </div>
       </div>
 
-      {/* ACTIVE AIRDROPS BANNER SECTION */}
-      {airdrops.filter((a) => a.status === 'ACTIVE').length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Gift className="w-5 h-5 text-purple-400 animate-bounce" />
-            <h2 className="text-xl font-black text-white">Active NEXORUM Token Airdrops</h2>
+      {/* DAILY CHECK-IN & STREAK AIRDROP REWARDS SECTION */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-950/90 via-slate-900 to-indigo-950/90 border border-purple-500/40 shadow-2xl space-y-5 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-purple-400 animate-bounce" />
+              <h2 className="text-xl font-black text-white">NEXORUM Daily Check-In & Streak Airdrop</h2>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+                Up to 500 NEX Total
+              </span>
+            </div>
+            <p className="text-xs text-slate-300">
+              Return every 24 hours to claim your daily token bonus! Maintain your streak to unlock the Day 7 Mega Bonus.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {airdrops
-              .filter((a) => a.status === 'ACTIVE')
-              .map((air) => {
-                const isClaimed = user && air.claimedUserIds.includes(user.id);
-                return (
-                  <div
-                    key={air.id}
-                    className="p-5 rounded-3xl bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950/80 border border-purple-500/30 shadow-xl flex flex-col justify-between gap-4 relative overflow-hidden"
-                  >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-black text-white text-base">{air.title}</span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-bold">
-                          {air.amountPerUser} {air.symbol}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-300 leading-relaxed">{air.description}</p>
-                      <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 pt-1">
-                        <span>Network: <strong className="text-cyan-300">{air.network.toUpperCase()}</strong></span>
-                        <span>Pool: <strong className="text-emerald-400">{air.remainingPool} {air.symbol}</strong></span>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-purple-500/20 flex items-center justify-between gap-3">
-                      {isClaimed ? (
-                        <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold font-mono">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Airdrop Claimed to Wallet</span>
-                        </div>
-                      ) : (
-                        <button
-                          id={`btn_claim_airdrop_${air.id}`}
-                          onClick={() => handleClaimAirdrop(air.id)}
-                          disabled={claimingId === air.id}
-                          className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-950 flex items-center justify-center gap-2 transition-all"
-                        >
-                          <Gift className={`w-4 h-4 ${claimingId === air.id ? 'animate-spin' : ''}`} />
-                          <span>{claimingId === air.id ? 'Claiming Tokens...' : `Claim ${air.amountPerUser} ${air.symbol}`}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="flex items-center gap-3">
+            <div className="px-3 py-1.5 rounded-xl bg-purple-900/40 border border-purple-500/30 text-right">
+              <span className="text-[10px] text-purple-300 uppercase font-bold block">Total Claimed</span>
+              <span className="text-sm font-black text-amber-300 font-mono">
+                {dailyStatus?.totalClaimed || 0} NEX
+              </span>
+            </div>
+            <div className="px-3 py-1.5 rounded-xl bg-purple-900/40 border border-purple-500/30 text-right">
+              <span className="text-[10px] text-purple-300 uppercase font-bold block">Current Streak</span>
+              <span className="text-sm font-black text-cyan-300 font-mono">
+                Day {dailyStatus?.streak || 1} / 7
+              </span>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* 7-Day Streak Calendar Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+          {(dailyStatus?.schedule || [15, 25, 40, 60, 80, 110, 170]).map((rewardNex, index) => {
+            const dayNum = index + 1;
+            const isCurrent = (dailyStatus?.streak || 1) === dayNum;
+            const isCompleted = (dailyStatus?.streak || 1) > dayNum;
+
+            return (
+              <div
+                key={dayNum}
+                className={`p-3 rounded-2xl border text-center transition-all duration-300 relative ${
+                  isCurrent
+                    ? 'bg-gradient-to-b from-purple-600/30 to-indigo-900/80 border-purple-400 ring-2 ring-purple-500/50 shadow-lg shadow-purple-900/50 scale-105'
+                    : isCompleted
+                    ? 'bg-slate-950/80 border-emerald-500/30 text-slate-400'
+                    : 'bg-slate-950/40 border-slate-800 text-slate-500'
+                }`}
+              >
+                <div className="text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                  <span>Day {dayNum}</span>
+                  {isCompleted && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
+                </div>
+
+                <div className="my-1.5 flex items-center justify-center">
+                  <Coins
+                    className={`w-6 h-6 ${
+                      isCurrent ? 'text-amber-300 animate-pulse' : isCompleted ? 'text-emerald-400' : 'text-slate-600'
+                    }`}
+                  />
+                </div>
+
+                <div className="font-extrabold font-mono text-xs text-white">
+                  +{rewardNex} NEX
+                </div>
+
+                {isCurrent && (
+                  <span className="mt-1 block text-[9px] font-bold text-purple-300 uppercase bg-purple-500/20 rounded py-0.5">
+                    Today
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Daily Claim Action Row */}
+        <div className="pt-3 border-t border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="text-xs text-purple-200/80 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
+            <span>Missing more than 48 hours resets your streak to Day 1.</span>
+          </div>
+
+          <div>
+            {dailyStatus?.canClaimNow ? (
+              <button
+                id="btn_claim_daily_airdrop"
+                onClick={handleClaimDailyAirdrop}
+                disabled={claimingDaily}
+                className="w-full sm:w-auto py-2.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-extrabold text-xs shadow-xl shadow-purple-950 flex items-center justify-center gap-2 transition-all hover:scale-105"
+              >
+                <Gift className={`w-4 h-4 ${claimingDaily ? 'animate-spin' : ''}`} />
+                <span>
+                  {claimingDaily
+                    ? 'Claiming...'
+                    : `Claim Day ${dailyStatus?.streak || 1} (+${dailyStatus?.currentRewardNex || 15} NEX)`}
+                </span>
+              </button>
+            ) : (
+              <div className="py-2 px-4 rounded-xl bg-slate-950/80 border border-purple-500/30 text-xs font-mono font-bold text-amber-300 flex items-center justify-center gap-2">
+                <Clock className="w-4 h-4 text-purple-400 animate-spin" />
+                <span>Next Daily Claim Opens In: {countdownText || 'Tomorrow'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 3D INTERACTIVE TOKEN SHOWCASE PANEL (AUTOSYNCED WITH CREATED TOKENS) */}
+      <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-6 relative overflow-hidden">
+        {/* Background Mesh Glow */}
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div>
+            <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-1">
+              <Boxes className="w-4 h-4" />
+              <span>NEXORUM 3D Crypto Panel Engine</span>
+            </div>
+            <h2 className="text-2xl font-black text-white flex items-center gap-2">
+              <span>Interactive 3D Token Matrix</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
+                LIVE SYNC ({tokens.length})
+              </span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              All real tokens created on NEXORUM automatically sync to this 3D showcase panel.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIs3dAutoRotate(!is3dAutoRotate)}
+              className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
+                is3dAutoRotate
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                  : 'bg-slate-950 text-slate-400 border-slate-800'
+              }`}
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${is3dAutoRotate ? 'animate-spin' : ''}`} />
+              <span>3D Orbit</span>
+            </button>
+            <button
+              onClick={() => setShowcaseMode(showcaseMode === '3d' ? 'grid' : '3d')}
+              className="py-1.5 px-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-bold transition-all"
+            >
+              {showcaseMode === '3d' ? 'Grid View' : '3D Stage'}
+            </button>
+            <button
+              onClick={() => setActiveTab('creator')}
+              className="py-1.5 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs transition-all flex items-center gap-1"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Create Token</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3D Showcase Stage */}
+        {showcaseMode === '3d' && tokens.length > 0 && activeToken && (
+          <div className="relative min-h-[360px] flex items-center justify-center p-4 bg-slate-950/80 rounded-3xl border border-slate-800/80 overflow-hidden group">
+            {/* Ambient Grid Lines */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+            {/* Carousel Navigation Arrows */}
+            <button
+              onClick={() => setActiveTokenIndex((prev) => (prev === 0 ? tokens.length - 1 : prev - 1))}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-300 hover:text-white hover:border-cyan-500/50 transition-all shadow-xl"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setActiveTokenIndex((prev) => (prev + 1) % tokens.length)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-300 hover:text-white hover:border-cyan-500/50 transition-all shadow-xl"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            {/* Central 3D Card Stage */}
+            <div className="perspective-[1000px] w-full max-w-md my-auto relative z-10">
+              <div className="transform-style-3d transition-transform duration-700 hover:rotate-x-6 hover:rotate-y-12 p-6 rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/95 to-slate-950 border-2 border-cyan-500/50 shadow-[0_0_50px_rgba(6,182,212,0.15)] relative space-y-5">
+                {/* Top Badge Row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-mono font-bold uppercase">
+                      {activeToken.network} • {activeToken.standard}
+                    </span>
+                    {activeToken.isVerified && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-800/40">
+                        <ShieldCheck className="w-3 h-3" />
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    Token #{activeTokenIndex + 1} of {tokens.length}
+                  </span>
+                </div>
+
+                {/* Token Identity */}
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <img
+                      src={activeToken.logoUrl}
+                      alt={activeToken.name}
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-cyan-400 shadow-lg shadow-cyan-950"
+                    />
+                    <span className="absolute -bottom-1 -right-1 p-1 rounded-lg bg-slate-950 border border-slate-800 text-cyan-400">
+                      <Zap className="w-3 h-3" />
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-black text-white">{activeToken.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm font-extrabold text-cyan-400 font-mono">${activeToken.symbol}</span>
+                      <span className="text-xs text-slate-400 font-mono">Supply: {formatNumber(parseFloat(activeToken.totalSupply))}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3D Metrics Grid */}
+                <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 font-mono">
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase font-semibold">Live Price</span>
+                    <p className="text-lg font-black text-white mt-0.5">{formatCurrency(activeToken.priceUsd)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase font-semibold">Market Cap</span>
+                    <p className="text-lg font-black text-emerald-400 mt-0.5">${formatNumber(activeToken.marketCapUsd)}</p>
+                  </div>
+                </div>
+
+                {/* Contract Address Copy Row */}
+                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono">
+                  <div className="truncate">
+                    <span className="text-[10px] text-slate-500 block uppercase">Smart Contract</span>
+                    <span className="text-slate-300 truncate block">{formatAddress(activeToken.contractAddress)}</span>
+                  </div>
+                  <button
+                    onClick={() => handleCopyContract(activeToken.contractAddress)}
+                    className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all shrink-0"
+                    title="Copy Contract Address"
+                  >
+                    {copiedAddress === activeToken.contractAddress ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Action CTA */}
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Owner: {formatAddress(activeToken.ownerAddress)}
+                  </span>
+                  <button
+                    onClick={() => setActiveTab('marketplace')}
+                    className="py-2 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-cyan-950"
+                  >
+                    <span>Trade Marketplace</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Token Dots Navigator */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
+              {tokens.map((t, idx) => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTokenIndex(idx)}
+                  className={`h-2 rounded-full transition-all ${
+                    idx === activeTokenIndex ? 'w-6 bg-cyan-400' : 'w-2 bg-slate-800 hover:bg-slate-700'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* NEW TOKENS & HOT TOKENS CAROUSEL / TABLE */}
       <div className="space-y-4">

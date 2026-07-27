@@ -247,18 +247,19 @@ const db = {
   airdrops: [
     {
       id: 'airdrop_nex_1',
-      title: 'NEXORUM Blockchain Genesis Airdrop',
+      title: 'NEXORUM Blockchain Daily Rewards Airdrop',
       symbol: 'NEX',
       amountPerUser: '500',
       totalPool: '1000000',
       remainingPool: '850000',
       network: 'nexorum',
       status: 'ACTIVE',
-      description: 'Official NEXORUM Blockchain Genesis Airdrop for all ecosystem participants and connected wallets.',
+      description: 'Check in daily to claim up to 500 NEX tokens in streak rewards! Return every 24 hours to maximize your daily yield.',
       claimedUserIds: [],
       createdAt: new Date().toISOString(),
     },
   ],
+  dailyClaims: {} as Record<string, { streak: number; lastClaimTimestamp: number; totalClaimed: number }>,
   settings: {
     walletConnectProjectId: process.env.WALLETCONNECT_PROJECT_ID || '8a381920392019382019382',
     cloudflareWorkerUrl: 'https://nexoria778.coinewolf.workers.dev/',
@@ -650,15 +651,18 @@ app.post('/api/v1/airdrops/create', (req, res) => {
   // Notify all users
   db.notifications.unshift({
     id: `notif_${Date.now()}`,
+    userId: 'all',
     title: `🎁 New Airdrop Launched: ${newAirdrop.title}`,
     message: `Admin launched a new airdrop! Claim ${newAirdrop.amountPerUser} ${newAirdrop.symbol} tokens now.`,
     type: 'SYSTEM',
     isRead: false,
+    actionUrl: '/airdrops',
     createdAt: new Date().toISOString(),
   });
 
   db.auditLogs.unshift({
     id: `log_${Date.now()}`,
+    userId: 'admin_sys',
     action: 'AIRDROP_CREATED',
     category: 'ADMIN',
     details: `Created airdrop campaign ${newAirdrop.title} (${newAirdrop.symbol}) with total pool of ${newAirdrop.totalPool}.`,
@@ -677,6 +681,7 @@ app.post('/api/v1/airdrops/status', (req, res) => {
     airdrop.status = status;
     db.auditLogs.unshift({
       id: `log_${Date.now()}`,
+      userId: 'admin_sys',
       action: 'AIRDROP_STATUS_CHANGED',
       category: 'ADMIN',
       details: `Airdrop ${airdrop.title} status updated to ${status}.`,
@@ -725,6 +730,7 @@ app.post('/api/v1/airdrops/distribute', (req, res) => {
         message: `Admin has sent ${airdrop.amountPerUser} ${airdrop.symbol} tokens directly to your connected wallet!`,
         type: 'WALLET',
         isRead: false,
+        actionUrl: '/portfolio',
         createdAt: new Date().toISOString(),
       });
     }
@@ -734,6 +740,7 @@ app.post('/api/v1/airdrops/distribute', (req, res) => {
 
   db.auditLogs.unshift({
     id: `log_${Date.now()}`,
+    userId: 'admin_sys',
     action: 'AIRDROP_MASS_DISPATCH',
     category: 'ADMIN',
     details: `Dispatched ${airdrop.amountPerUser} ${airdrop.symbol} each to all ${distributedCount} user accounts on NEXORUM Blockchain.`,
@@ -783,6 +790,128 @@ app.post('/api/v1/airdrops/claim', (req, res) => {
     success: true,
     message: `Successfully claimed ${airdrop.amountPerUser} ${airdrop.symbol}!`,
     airdrop,
+  });
+});
+
+// Daily Check-In & Streak Airdrop Engine
+const DAILY_REWARDS_SCHEDULE = [15, 25, 40, 60, 80, 110, 170]; // Sums to 500 NEX
+
+app.get('/api/v1/airdrops/daily-status', (req, res) => {
+  const userId = (req.query.userId as string) || 'usr_nex_982341';
+  if (!db.dailyClaims[userId]) {
+    db.dailyClaims[userId] = {
+      streak: 1,
+      lastClaimTimestamp: 0,
+      totalClaimed: 0,
+    };
+  }
+
+  const claimInfo = db.dailyClaims[userId];
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const elapsed = now - claimInfo.lastClaimTimestamp;
+
+  // Streak reset check: if user missed more than 48 hours, reset streak to 1
+  if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
+    claimInfo.streak = 1;
+  }
+
+  const canClaimNow = claimInfo.lastClaimTimestamp === 0 || elapsed >= ONE_DAY_MS;
+  const timeUntilNextClaimMs = canClaimNow ? 0 : ONE_DAY_MS - elapsed;
+  const currentRewardNex = DAILY_REWARDS_SCHEDULE[(claimInfo.streak - 1) % 7];
+
+  res.json({
+    success: true,
+    streak: claimInfo.streak,
+    lastClaimTimestamp: claimInfo.lastClaimTimestamp,
+    totalClaimed: claimInfo.totalClaimed,
+    canClaimNow,
+    timeUntilNextClaimMs,
+    currentRewardNex,
+    schedule: DAILY_REWARDS_SCHEDULE,
+  });
+});
+
+app.post('/api/v1/airdrops/daily-claim', (req, res) => {
+  const { userId } = req.body;
+  const targetUserId = userId || 'usr_nex_982341';
+  const user = db.users.find((u) => u.id === targetUserId) || db.users[0];
+
+  if (!db.dailyClaims[targetUserId]) {
+    db.dailyClaims[targetUserId] = {
+      streak: 1,
+      lastClaimTimestamp: 0,
+      totalClaimed: 0,
+    };
+  }
+
+  const claimInfo = db.dailyClaims[targetUserId];
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const elapsed = now - claimInfo.lastClaimTimestamp;
+
+  if (claimInfo.lastClaimTimestamp > 0 && elapsed < ONE_DAY_MS) {
+    const hoursLeft = Math.ceil((ONE_DAY_MS - elapsed) / (60 * 60 * 1000));
+    return res.status(400).json({
+      error: `Daily reward already claimed today! Next reward opens in ${hoursLeft} hours.`,
+      nextClaimAvailableInMs: ONE_DAY_MS - elapsed,
+    });
+  }
+
+  // Reset streak if missed 2 days
+  if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
+    claimInfo.streak = 1;
+  }
+
+  const rewardAmountNex = DAILY_REWARDS_SCHEDULE[(claimInfo.streak - 1) % 7];
+  claimInfo.totalClaimed += rewardAmountNex;
+  claimInfo.lastClaimTimestamp = now;
+
+  // Record Transaction
+  const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+  db.transactions.unshift({
+    id: `tx_daily_${Date.now()}`,
+    userId: user.id,
+    hash: txHash,
+    network: 'nexorum',
+    type: 'CLAIM',
+    status: 'CONFIRMED',
+    amount: rewardAmountNex.toString(),
+    symbol: 'NEX',
+    amountUsd: rewardAmountNex * 12.45,
+    fromAddress: '0x0000000000000000000000000000000000007780',
+    toAddress: user.primaryWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    blockNumber: Math.floor(19000000 + Math.random() * 1000000),
+    createdAt: new Date().toISOString(),
+    gasFeeUsd: 0.0,
+  });
+
+  // Notification
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    userId: user.id,
+    title: `🎁 Day ${claimInfo.streak} Daily Reward Claimed!`,
+    message: `You earned ${rewardAmountNex} NEX tokens for your Day ${claimInfo.streak} check-in! Keep your streak active tomorrow for Day ${
+      (claimInfo.streak % 7) + 1
+    } bonus.`,
+    type: 'WALLET',
+    isRead: false,
+    actionUrl: '/airdrops',
+    createdAt: new Date().toISOString(),
+  });
+
+  // Advance streak to next day for tomorrow
+  const claimedStreak = claimInfo.streak;
+  claimInfo.streak = (claimInfo.streak % 7) + 1;
+
+  res.json({
+    success: true,
+    message: `Claimed ${rewardAmountNex} NEX for Day ${claimedStreak} Check-In!`,
+    rewardNex: rewardAmountNex,
+    claimedStreak,
+    nextStreak: claimInfo.streak,
+    totalClaimed: claimInfo.totalClaimed,
+    lastClaimTimestamp: claimInfo.lastClaimTimestamp,
   });
 });
 

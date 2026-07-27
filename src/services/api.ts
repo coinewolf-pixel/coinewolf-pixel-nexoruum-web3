@@ -166,4 +166,18 @@ export const api = {
     });
     return res.json();
   },
+
+  async getDailyAirdropStatus(userId: string) {
+    const res = await fetch(`/api/v1/airdrops/daily-status?userId=${encodeURIComponent(userId)}`);
+    return res.json();
+  },
+
+  async claimDailyAirdrop(userId: string) {
+    const res = await fetch('/api/v1/airdrops/daily-claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    return res.json();
+  },
 };
