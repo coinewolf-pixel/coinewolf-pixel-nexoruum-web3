@@ -14,6 +14,7 @@ export interface NetworkInfo {
 }
 
 export type WalletProviderId =
+  | 'nexorum_vault'
   | 'walletconnect'
   | 'metamask'
   | 'phantom'
@@ -39,6 +40,10 @@ export interface ConnectedWallet {
 
 export interface UserProfile {
   id: string; // Unique User ID assigned by NEXORUM
+  nexoId?: string; // Unique NEXO Protocol ID (e.g. NEXO-84B7F2A1)
+  nexoPublicKey?: string; // On-Chain Public Key
+  nexoVaultAddress?: string; // Native Non-Custodial NEXO Wallet Address
+  hasBackupKey?: boolean;
   telegramId?: string;
   telegramUsername?: string;
   email?: string;

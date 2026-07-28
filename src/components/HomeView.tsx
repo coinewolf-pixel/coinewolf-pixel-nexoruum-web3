@@ -36,7 +36,7 @@ interface HomeViewProps {
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
-  const { activeWallet, openWalletModal } = useWallet();
+  const { activeWallet, openWalletModal, syncOnChainBalances, isSyncingBalances } = useWallet();
   const { user } = useAuth();
   const { addToast } = useNotifications();
   const [tokens, setTokens] = useState<TokenItem[]>([]);
@@ -54,6 +54,14 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [countdownText, setCountdownText] = useState('');
 
+  // Staking State
+  const [stakingPools, setStakingPools] = useState<any[]>([]);
+  const [userStakes, setUserStakes] = useState<any[]>([]);
+  const [selectedDuration, setSelectedDuration] = useState<number>(30);
+  const [stakeAmountInput, setStakeAmountInput] = useState<string>('10');
+  const [isStaking, setIsStaking] = useState(false);
+  const [isUnstakingId, setIsUnstakingId] = useState<string | null>(null);
+
   // 3D Panel State
   const [activeTokenIndex, setActiveTokenIndex] = useState(0);
   const [is3dAutoRotate, setIs3dAutoRotate] = useState(true);
@@ -68,6 +76,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
       const resAir = await api.getAirdrops();
       if (resAir.success && resAir.airdrops) setAirdrops(resAir.airdrops);
 
+      const resPools = await api.getStakingPools();
+      if (resPools.success && resPools.pools) setStakingPools(resPools.pools);
+
       if (user) {
         const resDaily = await api.getDailyAirdropStatus(user.id);
         if (resDaily.success) {
@@ -77,9 +88,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
             canClaimNow: resDaily.canClaimNow,
             timeUntilNextClaimMs: resDaily.timeUntilNextClaimMs,
             currentRewardNex: resDaily.currentRewardNex,
-            schedule: resDaily.schedule || [15, 25, 40, 60, 80, 110, 170],
+            schedule: resDaily.schedule || [8, 9, 10, 10, 11, 11, 11],
           });
         }
+
+        const resStakes = await api.getUserStakes(user.id);
+        if (resStakes.success && resStakes.stakes) setUserStakes(resStakes.stakes);
       }
     } catch (err) {
       console.error('Failed to load home data:', err);
@@ -149,6 +163,63 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
     }
   };
 
+  const handleManualSync = async () => {
+    try {
+      const res = await syncOnChainBalances();
+      addToast('On-Chain Balances Synced! 🔄', res.message, 'success');
+      loadData();
+    } catch (err: any) {
+      addToast('Sync Warning', err.message || 'Balance sync completed', 'warning');
+    }
+  };
+
+  const handleStakeNex = async () => {
+    if (!user) {
+      addToast('Wallet Required', 'Connect your Web3 wallet to stake NEX tokens.', 'warning');
+      openWalletModal();
+      return;
+    }
+
+    const numAmt = parseFloat(stakeAmountInput);
+    if (!numAmt || numAmt <= 0) {
+      addToast('Invalid Staking Amount', 'Please enter a valid amount of NEX to stake.', 'warning');
+      return;
+    }
+
+    setIsStaking(true);
+    try {
+      const res = await api.stakeNex(user.id, numAmt, selectedDuration);
+      if (res.success) {
+        addToast('NEX Tokens Staked! 🔒', res.message, 'success');
+        loadData();
+      } else {
+        addToast('Staking Error', res.error || 'Failed to stake NEX tokens.', 'error');
+      }
+    } catch (err: any) {
+      addToast('Staking Error', err.message || 'Error executing staking transaction', 'error');
+    } finally {
+      setIsStaking(false);
+    }
+  };
+
+  const handleUnstakeNex = async (stakeId: string) => {
+    if (!user) return;
+    setIsUnstakingId(stakeId);
+    try {
+      const res = await api.unstakeNex(stakeId, user.id);
+      if (res.success) {
+        addToast('Unstaked & Payout Collected! 🎉', res.message, 'success');
+        loadData();
+      } else {
+        addToast('Unstake Error', res.error || 'Failed to unstake NEX.', 'error');
+      }
+    } catch (err: any) {
+      addToast('Unstake Error', err.message || 'Error processing unstake', 'error');
+    } finally {
+      setIsUnstakingId(null);
+    }
+  };
+
   const handleCopyContract = (address: string) => {
     navigator.clipboard.writeText(address);
     setCopiedAddress(address);
@@ -191,13 +262,24 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
                 Across {user?.wallets.length || 0} Connected Wallets
               </span>
             </div>
-            <button
-              onClick={openWalletModal}
-              className="py-2.5 px-4 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition-all flex items-center gap-2 self-start sm:self-center shrink-0"
-            >
-              <Wallet className="w-4 h-4" />
-              <span>{user?.wallets.length ? 'Manage Wallets' : 'Connect Real Wallet'}</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
+              <button
+                id="btn_sync_onchain_balances"
+                onClick={handleManualSync}
+                disabled={isSyncingBalances}
+                className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-cyan-300 font-bold text-xs shadow-md flex items-center gap-2 transition-all"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-cyan-400 ${isSyncingBalances ? 'animate-spin' : ''}`} />
+                <span>{isSyncingBalances ? 'Syncing...' : 'Sync Now'}</span>
+              </button>
+              <button
+                onClick={openWalletModal}
+                className="py-2.5 px-4 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition-all flex items-center gap-2"
+              >
+                <Wallet className="w-4 h-4" />
+                <span>{user?.wallets.length ? 'Manage Wallets' : 'Connect Real Wallet'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Mini Portfolio Sparkline Visual */}
@@ -353,7 +435,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
         <div className="pt-3 border-t border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-xs text-purple-200/80 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
-            <span>Missing more than 48 hours resets your streak to Day 1.</span>
+            <span>30-Day Airdrop (Max 300 NEX). Claimed tokens are added directly to your wallet for Staking!</span>
           </div>
 
           <div>
@@ -368,7 +450,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
                 <span>
                   {claimingDaily
                     ? 'Claiming...'
-                    : `Claim Day ${dailyStatus?.streak || 1} (+${dailyStatus?.currentRewardNex || 15} NEX)`}
+                    : `Claim Day ${dailyStatus?.streak || 1} (+${dailyStatus?.currentRewardNex || 10} NEX)`}
                 </span>
               </button>
             ) : (
@@ -377,6 +459,195 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
                 <span>Next Daily Claim Opens In: {countdownText || 'Tomorrow'}</span>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* NEXO STAKING ENGINE & YIELD GENERATOR */}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl space-y-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                <Flame className="w-5 h-5" />
+              </div>
+              <h2 className="text-xl font-black text-white">NEXO Staking Engine</h2>
+              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                Up to 100% APY
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Stake your claimed NEXO tokens to earn high compounded yield. Longer holding periods yield exponentially higher APY percentages.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="px-3.5 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-right">
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Available in Wallet</span>
+              <span className="text-sm font-black text-cyan-400 font-mono">
+                {activeWallet?.nativeBalance.includes('NEX')
+                  ? activeWallet.nativeBalance
+                  : user?.wallets?.find((w) => w.nativeBalance.includes('NEX'))?.nativeBalance || '120.00 NEX'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Staking Form & Pool Selection */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 block">
+                Select Lock Term & APY Percentage
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                {(
+                  stakingPools.length > 0
+                    ? stakingPools
+                    : [
+                        { durationDays: 7, apyPercent: 8 },
+                        { durationDays: 14, apyPercent: 14 },
+                        { durationDays: 30, apyPercent: 25 },
+                        { durationDays: 60, apyPercent: 45 },
+                        { durationDays: 90, apyPercent: 65 },
+                        { durationDays: 180, apyPercent: 100 },
+                      ]
+                ).map((pool) => {
+                  const isSelected = selectedDuration === pool.durationDays;
+                  return (
+                    <button
+                      key={pool.durationDays}
+                      type="button"
+                      onClick={() => setSelectedDuration(pool.durationDays)}
+                      className={`p-3 rounded-2xl border text-center transition-all ${
+                        isSelected
+                          ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="text-xs font-black block">{pool.durationDays} Days</span>
+                      <span className="text-[11px] font-bold text-emerald-400 font-mono mt-0.5 block">
+                        {pool.apyPercent}% APY
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 block">
+                  Amount to Stake (NEX)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={stakeAmountInput}
+                    onChange={(e) => setStakeAmountInput(e.target.value)}
+                    placeholder="Enter NEX amount..."
+                    className="w-full py-3 px-4 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-bold font-mono focus:outline-none focus:border-cyan-500"
+                  />
+                  <div className="absolute right-2 top-2 flex gap-1">
+                    {['10', '50', '100'].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setStakeAmountInput(amt)}
+                        className="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300"
+                      >
+                        {amt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 block">
+                  Estimated Yield Output
+                </label>
+                {(() => {
+                  const pool = stakingPools.find((p) => p.durationDays === selectedDuration) || {
+                    durationDays: selectedDuration,
+                    apyPercent: selectedDuration === 180 ? 100 : selectedDuration === 90 ? 65 : selectedDuration === 60 ? 45 : 25,
+                  };
+                  const inputVal = parseFloat(stakeAmountInput) || 0;
+                  const estimatedGain = ((inputVal * (pool.apyPercent / 100) * pool.durationDays) / 365).toFixed(2);
+                  const totalAtMaturity = (inputVal + parseFloat(estimatedGain)).toFixed(2);
+
+                  return (
+                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-500 font-bold block uppercase">At Maturity ({pool.durationDays} Days)</span>
+                        <span className="text-sm font-black text-emerald-400 font-mono">+{estimatedGain} NEX Yield</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-500 font-bold block uppercase">Total Payout</span>
+                        <span className="text-sm font-black text-white font-mono">{totalAtMaturity} NEX</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <button
+              id="btn_stake_nex_now"
+              onClick={handleStakeNex}
+              disabled={isStaking}
+              className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all"
+            >
+              <Flame className={`w-4 h-4 ${isStaking ? 'animate-spin' : ''}`} />
+              <span>{isStaking ? 'Staking NEX Tokens...' : `Stake ${stakeAmountInput || '0'} NEX for ${selectedDuration} Days`}</span>
+            </button>
+          </div>
+
+          {/* Active Stakes Summary Card */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Active Stakes</span>
+                <span className="text-xs font-mono font-bold text-cyan-400">{userStakes.length} Position(s)</span>
+              </div>
+
+              {userStakes.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 space-y-2">
+                  <Boxes className="w-8 h-8 mx-auto text-slate-700" />
+                  <p className="text-xs">No active NEX stakes yet.</p>
+                  <p className="text-[10px] text-slate-600">Select a lock term and stake your claimed airdrop tokens above!</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                  {userStakes.map((stk) => (
+                    <div key={stk.id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between font-bold text-white">
+                        <span>{stk.amountNex} NEX</span>
+                        <span className="text-emerald-400 font-mono">{stk.apyPercent}% APY ({stk.durationDays}D)</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>Yield: +{stk.estimatedRewardNex} NEX</span>
+                        <span className="text-cyan-400 font-mono">{stk.status}</span>
+                      </div>
+                      <button
+                        onClick={() => handleUnstakeNex(stk.id)}
+                        disabled={isUnstakingId === stk.id}
+                        className="w-full mt-1 py-1.5 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition-all flex items-center justify-center gap-1"
+                      >
+                        <Zap className="w-3 h-3" />
+                        <span>{isUnstakingId === stk.id ? 'Processing...' : 'Unstake & Claim Total Yield'}</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 text-[10px] text-slate-500 text-center">
+              Staking rewards are distributed on-chain upon unstaking.
+            </div>
           </div>
         </div>
       </div>

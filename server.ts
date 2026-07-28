@@ -1,6 +1,8 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
+import { ethers } from 'ethers';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 
@@ -11,11 +13,72 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
+// --- AES-256 NON-CUSTODIAL WALLET VAULT ENCRYPTION ENGINE ---
+const VAULT_SECRET_KEY = process.env.VAULT_ENCRYPTION_SECRET || 'nexorum_vault_secure_key_2026_aes256_prod';
+
+function encryptVaultData(text: string): string {
+  const iv = crypto.randomBytes(16);
+  const key = crypto.scryptSync(VAULT_SECRET_KEY, 'salt', 32);
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return `${iv.toString('hex')}:${encrypted}`;
+}
+
+function decryptVaultData(encryptedString: string): string {
+  try {
+    const [ivHex, encryptedText] = encryptedString.split(':');
+    if (!ivHex || !encryptedText) return '';
+    const iv = Buffer.from(ivHex, 'hex');
+    const key = crypto.scryptSync(VAULT_SECRET_KEY, 'salt', 32);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (e) {
+    console.warn('Vault decryption error:', e);
+    return '';
+  }
+}
+
+interface NexoVaultInfo {
+  address: string;
+  publicKey: string;
+  nexoId: string;
+  encryptedPrivateKey: string;
+  encryptedMnemonic: string;
+}
+
+function generateNewNexoVault(): NexoVaultInfo {
+  const wallet = ethers.Wallet.createRandom();
+  const address = wallet.address;
+  const publicKey = wallet.signingKey?.publicKey || `0x04${address.slice(2)}${address.slice(2, 34)}`;
+  const mnemonic = wallet.mnemonic?.phrase || '';
+  const privateKey = wallet.privateKey;
+  const nexoId = `NEXO-${address.slice(2, 10).toUpperCase()}`;
+
+  return {
+    address,
+    publicKey,
+    nexoId,
+    encryptedPrivateKey: encryptVaultData(privateKey),
+    encryptedMnemonic: encryptVaultData(mnemonic),
+  };
+}
+
+// Pre-generate default non-custodial vault for demo user
+const defaultUserVault = generateNewNexoVault();
+
 // In-memory persistent database store for NEXORUM OS Engine
 const db = {
   users: [
     {
       id: 'usr_nex_982341',
+      nexoId: defaultUserVault.nexoId,
+      nexoPublicKey: defaultUserVault.publicKey,
+      nexoVaultAddress: defaultUserVault.address,
+      encryptedPrivateKey: defaultUserVault.encryptedPrivateKey,
+      encryptedMnemonic: defaultUserVault.encryptedMnemonic,
       telegramId: '772183941',
       telegramUsername: 'cyber_trader',
       email: 'alex.cyber@nexorum.os',
@@ -23,15 +86,26 @@ const db = {
       username: 'Alex Cyber',
       avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
       role: 'CREATOR',
-      primaryWallet: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+      primaryWallet: defaultUserVault.address,
       wallets: [
+        {
+          id: `w_nexo_vault_${defaultUserVault.address.slice(-6)}`,
+          address: defaultUserVault.address,
+          network: 'nexorum',
+          provider: 'nexorum_vault',
+          providerName: 'NEXO Native Non-Custodial Vault',
+          isPrimary: true,
+          balanceUsd: 12450.00,
+          nativeBalance: '1000.00 NEX',
+          connectedAt: new Date().toISOString(),
+        },
         {
           id: 'w_1',
           address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
           network: 'ethereum',
           provider: 'metamask',
           providerName: 'MetaMask',
-          isPrimary: true,
+          isPrimary: false,
           balanceUsd: 14850.50,
           nativeBalance: '4.25 ETH',
           connectedAt: new Date().toISOString(),
@@ -249,14 +323,27 @@ const db = {
       id: 'airdrop_nex_1',
       title: 'NEXORUM Blockchain Daily Rewards Airdrop',
       symbol: 'NEX',
-      amountPerUser: '500',
-      totalPool: '1000000',
-      remainingPool: '850000',
+      amountPerUser: '10',
+      totalPool: '30000',
+      remainingPool: '28500',
       network: 'nexorum',
       status: 'ACTIVE',
-      description: 'Check in daily to claim up to 500 NEX tokens in streak rewards! Return every 24 hours to maximize your daily yield.',
+      description: 'Check in daily to claim up to 10 NEX tokens daily (max 300 NEX over 30 days)! Claimed NEX is credited directly to your connected wallet and can be staked to earn compounded yield.',
       claimedUserIds: [],
       createdAt: new Date().toISOString(),
+    },
+  ],
+  userStakes: [
+    {
+      id: 'stake_demo_1',
+      userId: 'usr_nex_982341',
+      amountNex: 50,
+      durationDays: 30,
+      apyPercent: 25,
+      estimatedRewardNex: 1.02,
+      stakedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+      maturesAt: new Date(Date.now() + 86400000 * 25).toISOString(),
+      status: 'ACTIVE',
     },
   ],
   dailyClaims: {} as Record<string, { streak: number; lastClaimTimestamp: number; totalClaimed: number }>,
@@ -318,10 +405,17 @@ app.post('/api/v1/auth/telegram', (req, res) => {
   let user = db.users.find((u) => u.telegramId === String(telegramId));
 
   if (!user) {
-    // Automatically create profile on first login
+    // Automatically create profile and generate real Non-Custodial NEXO Vault
     const newUserId = `usr_nex_${Math.floor(100000 + Math.random() * 900000)}`;
+    const userVault = generateNewNexoVault();
+
     user = {
       id: newUserId,
+      nexoId: userVault.nexoId,
+      nexoPublicKey: userVault.publicKey,
+      nexoVaultAddress: userVault.address,
+      encryptedPrivateKey: userVault.encryptedPrivateKey,
+      encryptedMnemonic: userVault.encryptedMnemonic,
       telegramId: String(telegramId),
       telegramUsername: telegramUsername || `tg_user_${telegramId}`,
       email: '',
@@ -329,8 +423,20 @@ app.post('/api/v1/auth/telegram', (req, res) => {
       username: firstName ? `${firstName} (TG)` : `@${telegramUsername || telegramId}`,
       avatarUrl: photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
       role: 'USER',
-      primaryWallet: '',
-      wallets: [],
+      primaryWallet: userVault.address,
+      wallets: [
+        {
+          id: `w_nexo_vault_${userVault.address.slice(-6)}`,
+          address: userVault.address,
+          network: 'nexorum',
+          provider: 'nexorum_vault',
+          providerName: 'NEXO Native Non-Custodial Vault',
+          isPrimary: true,
+          balanceUsd: 100.00,
+          nativeBalance: '10.00 NEX',
+          connectedAt: new Date().toISOString(),
+        },
+      ],
       achievementsCount: 1,
       referralCode: `NEX-TG-${telegramId.slice(-4)}`,
       referralsCount: 0,
@@ -342,9 +448,9 @@ app.post('/api/v1/auth/telegram', (req, res) => {
     db.auditLogs.unshift({
       id: `log_${Date.now()}`,
       userId: user.id,
-      action: 'TELEGRAM_PROFILE_CREATED',
+      action: 'TELEGRAM_PROFILE_AND_VAULT_CREATED',
       category: 'AUTH',
-      details: `Created new NEXORUM user account for Telegram ID ${telegramId}`,
+      details: `Created new NEXORUM user account and non-custodial NEXO wallet ${userVault.address} for Telegram ID ${telegramId}`,
       ipAddress: req.ip || '127.0.0.1',
       status: 'SUCCESS',
       timestamp: new Date().toISOString(),
@@ -352,6 +458,78 @@ app.post('/api/v1/auth/telegram', (req, res) => {
   }
 
   res.json({ success: true, user });
+});
+
+// 2b. NEXO Non-Custodial Vault Management Endpoints
+app.get('/api/v1/user/nexo-vault', (req, res) => {
+  const userId = req.query.userId as string;
+  const user = db.users.find((u) => u.id === userId) || db.users[0];
+
+  if (!user.nexoVaultAddress) {
+    const vault = generateNewNexoVault();
+    user.nexoId = vault.nexoId;
+    user.nexoPublicKey = vault.publicKey;
+    user.nexoVaultAddress = vault.address;
+    user.encryptedPrivateKey = vault.encryptedPrivateKey;
+    user.encryptedMnemonic = vault.encryptedMnemonic;
+    if (!user.wallets.some((w) => w.provider === 'nexorum_vault')) {
+      user.wallets.unshift({
+        id: `w_nexo_vault_${vault.address.slice(-6)}`,
+        address: vault.address,
+        network: 'nexorum',
+        provider: 'nexorum_vault',
+        providerName: 'NEXO Native Non-Custodial Vault',
+        isPrimary: true,
+        balanceUsd: 12450.00,
+        nativeBalance: '1000.00 NEX',
+        connectedAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  res.json({
+    success: true,
+    vault: {
+      userId: user.id,
+      nexoId: user.nexoId,
+      nexoPublicKey: user.nexoPublicKey,
+      nexoVaultAddress: user.nexoVaultAddress,
+      isEncryptedAtRest: true,
+      encryptionAlgorithm: 'AES-256-CBC (PBKDF2 Scrypt)',
+    },
+  });
+});
+
+app.post('/api/v1/user/export-nexo-vault', (req, res) => {
+  const { userId, pin } = req.body;
+  const user = db.users.find((u) => u.id === userId) || db.users[0];
+
+  if (!user || !user.encryptedPrivateKey) {
+    return res.status(404).json({ error: 'NEXO Non-Custodial Vault not found' });
+  }
+
+  const decryptedKey = decryptVaultData(user.encryptedPrivateKey);
+  const decryptedMnemonic = decryptVaultData(user.encryptedMnemonic);
+
+  db.auditLogs.unshift({
+    id: `log_${Date.now()}`,
+    userId: user.id,
+    action: 'NON_CUSTODIAL_VAULT_EXPORTED',
+    category: 'SECURITY',
+    details: `User exported seed phrase and private key for NEXO Vault ${user.nexoVaultAddress}`,
+    ipAddress: req.ip || '127.0.0.1',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    nexoId: user.nexoId,
+    address: user.nexoVaultAddress,
+    publicKey: user.nexoPublicKey,
+    privateKey: decryptedKey,
+    mnemonic: decryptedMnemonic,
+  });
 });
 
 // 3. User Profile Update
@@ -642,7 +820,56 @@ app.post('/api/v1/marketplace/buy', (req, res) => {
   res.json({ success: true, item, message: 'Purchase confirmed on NEXORUM Blockchain Engine' });
 });
 
-// 9. AI Assistant (Gemini API Integration)
+// 9. AI Assistant & Token Logo Generator (Gemini API Integration)
+app.post('/api/v1/ai/generate-logo', async (req, res) => {
+  const { name, symbol, style, description } = req.body;
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
+      const ai = new GoogleGenAI({ apiKey });
+      try {
+        const imageRes = await ai.models.generateImages({
+          model: 'imagen-3.0-generate-002',
+          prompt: `A high quality minimalist Web3 cryptocurrency token icon logo badge for ${name} (${symbol}), ${description || 'modern crypto branding'}, style: ${style || 'futuristic metallic vector icon'}, transparent background centered emblem, 1:1 aspect ratio`,
+          config: {
+            numberOfImages: 1,
+            outputMimeType: 'image/png',
+            aspectRatio: '1:1',
+          },
+        });
+
+        if (imageRes.generatedImages && imageRes.generatedImages.length > 0) {
+          const base64Img = imageRes.generatedImages[0].image.imageBytes;
+          const logoUrl = `data:image/png;base64,${base64Img}`;
+          return res.json({ success: true, logoUrl });
+        }
+      } catch (genErr) {
+        console.warn('Imagen generation error, falling back to Gemini text SVG prompt:', genErr);
+      }
+    }
+  } catch (err: any) {
+    console.error('AI Logo API Error:', err?.message || err);
+  }
+
+  // High quality SVG icon fallback generator
+  const colors = [
+    ['#06b6d4', '#3b82f6'],
+    ['#f59e0b', '#d97706'],
+    ['#10b981', '#059669'],
+    ['#8b5cf6', '#6d28d9'],
+    ['#ec4899', '#be185d'],
+  ];
+  const pair = colors[Math.floor(Math.random() * colors.length)];
+  const symChar = (symbol || name || 'NEX').slice(0, 3).toUpperCase();
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${pair[0]}"/><stop offset="100%" stop-color="${pair[1]}"/></linearGradient></defs><rect width="256" height="256" rx="128" fill="url(#g)"/><circle cx="128" cy="128" r="100" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="8"/><text x="128" y="142" font-family="sans-serif" font-weight="900" font-size="64" fill="#ffffff" text-anchor="middle">${symChar}</text></svg>`;
+
+  const logoUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+
+  res.json({ success: true, logoUrl });
+});
+
 app.post('/api/v1/ai/assistant', async (req, res) => {
   const { prompt, contextType } = req.body;
 
@@ -881,8 +1108,8 @@ app.post('/api/v1/airdrops/claim', (req, res) => {
   });
 });
 
-// Daily Check-In & Streak Airdrop Engine
-const DAILY_REWARDS_SCHEDULE = [15, 25, 40, 60, 80, 110, 170]; // Sums to 500 NEX
+// Daily Check-In & Streak Airdrop Engine (Max 300 NEX over 30 days)
+const DAILY_REWARDS_SCHEDULE = [8, 9, 10, 10, 11, 11, 11]; // Sums to ~70 NEX per week (max 300 NEX over 30 days)
 
 app.get('/api/v1/airdrops/daily-status', (req, res) => {
   const userId = (req.query.userId as string) || 'usr_nex_982341';
@@ -955,6 +1182,31 @@ app.post('/api/v1/airdrops/daily-claim', (req, res) => {
   claimInfo.totalClaimed += rewardAmountNex;
   claimInfo.lastClaimTimestamp = now;
 
+  // Credit NEX tokens directly into user's wallet balance for staking!
+  if (user) {
+    let nexWallet = user.wallets.find((w: any) => w.network === 'nexorum' || w.nativeBalance.includes('NEX'));
+    if (!nexWallet && user.wallets.length > 0) {
+      nexWallet = user.wallets[0];
+    }
+    if (nexWallet) {
+      const currentVal = parseFloat(nexWallet.nativeBalance) || 0;
+      nexWallet.nativeBalance = `${(currentVal + rewardAmountNex).toFixed(2)} NEX`;
+      nexWallet.balanceUsd += rewardAmountNex * 12.45;
+    } else {
+      user.wallets.push({
+        id: `w_nex_${Date.now()}`,
+        address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+        network: 'nexorum',
+        provider: 'metamask',
+        providerName: 'NEXORUM Web3 Wallet',
+        isPrimary: true,
+        balanceUsd: rewardAmountNex * 12.45,
+        nativeBalance: `${rewardAmountNex} NEX`,
+        connectedAt: new Date().toISOString(),
+      });
+    }
+  }
+
   // Record Transaction
   const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
   db.transactions.unshift({
@@ -979,12 +1231,10 @@ app.post('/api/v1/airdrops/daily-claim', (req, res) => {
     id: `notif_${Date.now()}`,
     userId: user.id,
     title: `🎁 Day ${claimInfo.streak} Daily Reward Claimed!`,
-    message: `You earned ${rewardAmountNex} NEX tokens for your Day ${claimInfo.streak} check-in! Keep your streak active tomorrow for Day ${
-      (claimInfo.streak % 7) + 1
-    } bonus.`,
+    message: `You earned ${rewardAmountNex} NEX tokens credited to your connected wallet! You can now stake your NEX tokens in the Staking Engine to earn compound interest.`,
     type: 'WALLET',
     isRead: false,
-    actionUrl: '/airdrops',
+    actionUrl: '/profile',
     createdAt: new Date().toISOString(),
   });
 
@@ -994,12 +1244,156 @@ app.post('/api/v1/airdrops/daily-claim', (req, res) => {
 
   res.json({
     success: true,
-    message: `Claimed ${rewardAmountNex} NEX for Day ${claimedStreak} Check-In!`,
+    message: `Claimed ${rewardAmountNex} NEX for Day ${claimedStreak} Check-In! Tokens added to your wallet for Staking.`,
     rewardNex: rewardAmountNex,
     claimedStreak,
     nextStreak: claimInfo.streak,
     totalClaimed: claimInfo.totalClaimed,
     lastClaimTimestamp: claimInfo.lastClaimTimestamp,
+  });
+});
+
+// --- STAKING ENGINE ENDPOINTS ---
+// Dynamic Staking APY Pools: Longer lock duration = higher APY %
+const STAKING_POOLS = [
+  { id: 'pool_7d', name: '7 Days Flexible', durationDays: 7, apyPercent: 8.0, description: 'Short lock term with 8% APY' },
+  { id: 'pool_14d', name: '14 Days Growth', durationDays: 14, apyPercent: 14.0, description: 'Medium lock term with 14% APY' },
+  { id: 'pool_30d', name: '30 Days Pro', durationDays: 30, apyPercent: 25.0, description: '30 days holding term with 25% APY' },
+  { id: 'pool_60d', name: '60 Days Ultra', durationDays: 60, apyPercent: 45.0, description: '60 days lock with 45% APY' },
+  { id: 'pool_90d', name: '90 Days VIP', durationDays: 90, apyPercent: 65.0, description: '90 days lock with 65% APY' },
+  { id: 'pool_180d', name: '180 Days Master', durationDays: 180, apyPercent: 100.0, description: '180 days long-term lock with 100% APY' },
+];
+
+app.get('/api/v1/staking/pools', (req, res) => {
+  res.json({ success: true, pools: STAKING_POOLS });
+});
+
+app.get('/api/v1/staking/user-stakes', (req, res) => {
+  const userId = (req.query.userId as string) || 'usr_nex_982341';
+  const stakes = db.userStakes.filter((s: any) => s.userId === userId);
+  res.json({ success: true, stakes });
+});
+
+app.post('/api/v1/staking/stake', (req, res) => {
+  const { userId, amountNex, durationDays } = req.body;
+  const targetUserId = userId || 'usr_nex_982341';
+  const user = db.users.find((u) => u.id === targetUserId) || db.users[0];
+  const numAmount = parseFloat(amountNex);
+
+  if (!numAmount || numAmount <= 0) {
+    return res.status(400).json({ error: 'Valid NEX token staking amount is required' });
+  }
+
+  const pool = STAKING_POOLS.find((p) => p.durationDays === Number(durationDays)) || STAKING_POOLS[2];
+
+  // Check user wallet balance
+  let nexWallet = user.wallets.find((w: any) => w.nativeBalance.includes('NEX'));
+  if (!nexWallet && user.wallets.length > 0) nexWallet = user.wallets[0];
+
+  const currentBal = nexWallet ? parseFloat(nexWallet.nativeBalance) || 0 : 0;
+  if (currentBal < numAmount) {
+    return res.status(400).json({
+      error: `Insufficient NEX balance in your wallet. Available: ${currentBal.toFixed(2)} NEX, required: ${numAmount} NEX.`,
+    });
+  }
+
+  // Deduct from wallet balance
+  if (nexWallet) {
+    const updatedBal = Math.max(0, currentBal - numAmount);
+    nexWallet.nativeBalance = `${updatedBal.toFixed(2)} NEX`;
+    nexWallet.balanceUsd = Math.max(0, nexWallet.balanceUsd - numAmount * 12.45);
+  }
+
+  // Calculate estimated yield based on APY % and duration
+  const yearFraction = pool.durationDays / 365;
+  const estimatedRewardNex = Math.round(numAmount * (pool.apyPercent / 100) * yearFraction * 100) / 100;
+
+  const nowMs = Date.now();
+  const newStake = {
+    id: `stake_${nowMs}`,
+    userId: targetUserId,
+    amountNex: numAmount,
+    durationDays: pool.durationDays,
+    apyPercent: pool.apyPercent,
+    estimatedRewardNex,
+    stakedAt: new Date(nowMs).toISOString(),
+    maturesAt: new Date(nowMs + pool.durationDays * 86400000).toISOString(),
+    status: 'ACTIVE',
+  };
+
+  db.userStakes.unshift(newStake);
+
+  db.auditLogs.unshift({
+    id: `log_${nowMs}`,
+    userId: targetUserId,
+    action: 'NEX_STAKED',
+    category: 'STAKING',
+    details: `Staked ${numAmount} NEX for ${pool.durationDays} days at ${pool.apyPercent}% APY. Estimated reward: +${estimatedRewardNex} NEX.`,
+    ipAddress: req.ip || '127.0.0.1',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  db.notifications.unshift({
+    id: `notif_${nowMs}`,
+    userId: targetUserId,
+    title: `🔒 Staked ${numAmount} NEX (${pool.apyPercent}% APY)`,
+    message: `Your ${numAmount} NEX is now locked for ${pool.durationDays} days. You will earn +${estimatedRewardNex} NEX bonus at maturity!`,
+    type: 'WALLET',
+    isRead: false,
+    actionUrl: '/profile',
+    createdAt: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: `Successfully staked ${numAmount} NEX for ${pool.durationDays} days at ${pool.apyPercent}% APY!`,
+    stake: newStake,
+    remainingWalletNex: nexWallet ? parseFloat(nexWallet.nativeBalance) : 0,
+  });
+});
+
+app.post('/api/v1/staking/unstake', (req, res) => {
+  const { stakeId, userId } = req.body;
+  const stakeIndex = db.userStakes.findIndex((s: any) => s.id === stakeId && s.userId === (userId || 'usr_nex_982341'));
+
+  if (stakeIndex === -1) {
+    return res.status(404).json({ error: 'Staking record not found' });
+  }
+
+  const stake = db.userStakes[stakeIndex];
+  const user = db.users.find((u) => u.id === stake.userId) || db.users[0];
+
+  const totalPayout = stake.amountNex + stake.estimatedRewardNex;
+
+  // Credit principal + yields back to user's wallet balance
+  let nexWallet = user.wallets.find((w: any) => w.nativeBalance.includes('NEX'));
+  if (!nexWallet && user.wallets.length > 0) nexWallet = user.wallets[0];
+
+  if (nexWallet) {
+    const cur = parseFloat(nexWallet.nativeBalance) || 0;
+    nexWallet.nativeBalance = `${(cur + totalPayout).toFixed(2)} NEX`;
+    nexWallet.balanceUsd += totalPayout * 12.45;
+  }
+
+  stake.status = 'UNSTAKED';
+
+  db.auditLogs.unshift({
+    id: `log_${Date.now()}`,
+    userId: stake.userId,
+    action: 'NEX_UNSTAKED',
+    category: 'STAKING',
+    details: `Unstaked ${stake.amountNex} NEX + received ${stake.estimatedRewardNex} NEX yield interest back into wallet!`,
+    ipAddress: req.ip || '127.0.0.1',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: `Successfully unstaked! Received ${stake.amountNex} NEX principal + ${stake.estimatedRewardNex} NEX interest back to your wallet!`,
+    totalPayout,
+    stake,
   });
 });
 

@@ -189,4 +189,56 @@ export const api = {
     });
     return res.json();
   },
+
+  async getStakingPools() {
+    const res = await fetch('/api/v1/staking/pools');
+    return res.json();
+  },
+
+  async getUserStakes(userId: string) {
+    const res = await fetch(`/api/v1/staking/user-stakes?userId=${encodeURIComponent(userId)}`);
+    return res.json();
+  },
+
+  async stakeNex(userId: string, amountNex: number, durationDays: number) {
+    const res = await fetch('/api/v1/staking/stake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, amountNex, durationDays }),
+    });
+    return res.json();
+  },
+
+  async unstakeNex(stakeId: string, userId: string) {
+    const res = await fetch('/api/v1/staking/unstake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stakeId, userId }),
+    });
+    return res.json();
+  },
+
+  async getNexoVault(userId: string) {
+    const res = await fetch(`/api/v1/user/nexo-vault?userId=${encodeURIComponent(userId)}`);
+    return res.json();
+  },
+
+  async exportNexoVault(userId: string, pin?: string) {
+    const res = await fetch('/api/v1/user/export-nexo-vault', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, pin }),
+    });
+    return res.json();
+  },
+
+  async generateTokenLogo(name: string, symbol: string, style?: string, description?: string) {
+    const res = await fetch('/api/v1/ai/generate-logo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, symbol, style, description }),
+    });
+    return res.json();
+  },
 };
+

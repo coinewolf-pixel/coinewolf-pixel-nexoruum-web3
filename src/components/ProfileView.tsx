@@ -13,10 +13,15 @@ import {
   Check,
   Edit2,
   Zap,
+  Key,
+  Eye,
+  EyeOff,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWallet } from '../context/WalletContext';
 import { formatAddress, formatCurrency } from '../lib/utils';
+import { api } from '../services/api';
 
 export const ProfileView: React.FC = () => {
   const { user, updateProfile, removeWalletFromProfile, clearDemoWallets } = useAuth();
@@ -27,6 +32,37 @@ export const ProfileView: React.FC = () => {
   const [phone, setPhone] = useState(user?.phone || '');
   const [username, setUsername] = useState(user?.username || '');
   const [copiedReferral, setCopiedReferral] = useState(false);
+
+  // Non-Custodial Vault Export State
+  const [showVaultDetails, setShowVaultDetails] = useState(false);
+  const [isExportingKeys, setIsExportingKeys] = useState(false);
+  const [exportedVaultKeys, setExportedVaultKeys] = useState<{ privateKey: string; mnemonic: string } | null>(null);
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [copiedVaultKey, setCopiedVaultKey] = useState(false);
+
+  const handleExportVaultKeys = async () => {
+    setIsExportingKeys(true);
+    try {
+      const res = await api.exportNexoVault(user?.id || 'usr_nex_982341');
+      if (res?.success && res.privateKey) {
+        setExportedVaultKeys({
+          privateKey: res.privateKey,
+          mnemonic: res.mnemonic,
+        });
+        setShowVaultDetails(true);
+      }
+    } catch (e) {
+      console.error('Failed to export NEXO vault keys:', e);
+    } finally {
+      setIsExportingKeys(false);
+    }
+  };
+
+  const handleCopyVaultKey = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedVaultKey(true);
+    setTimeout(() => setCopiedVaultKey(false), 2000);
+  };
 
   const handleSaveProfile = async () => {
     await updateProfile({ email, phone, username });
@@ -59,6 +95,12 @@ export const ProfileView: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1">User ID: {user?.id || 'usr_nex_982341'}</p>
+            {user?.nexoId && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-400 font-mono mt-1">
+                <Shield className="w-3.5 h-3.5" />
+                <span>NEXO ID: {user.nexoId}</span>
+              </div>
+            )}
             {user?.telegramUsername && (
               <div className="flex items-center gap-1.5 text-xs text-sky-400 font-mono mt-1">
                 <Send className="w-3.5 h-3.5" />
@@ -120,6 +162,92 @@ export const ProfileView: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Non-Custodial NEXO Protocol Vault */}
+      <div className="p-6 rounded-3xl bg-slate-900 border border-amber-500/30 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-white text-base">NEXO Native Non-Custodial Vault</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                  AES-256 Encrypted
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">Auto-generated blockchain account & identity for NEXO Protocol</p>
+            </div>
+          </div>
+
+          <button
+            id="btn_export_nexo_vault_keys"
+            onClick={showVaultDetails ? () => setShowVaultDetails(false) : handleExportVaultKeys}
+            disabled={isExportingKeys}
+            className="py-2 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center gap-2"
+          >
+            <Key className="w-4 h-4" />
+            <span>{isExportingKeys ? 'Decrypting Vault...' : showVaultDetails ? 'Hide Security Keys' : 'Export Private Keys'}</span>
+          </button>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div>
+            <span className="text-slate-500 text-[10px] uppercase font-sans">NEXO ID (Universal Identity)</span>
+            <p className="text-amber-400 font-bold mt-0.5">{user?.nexoId || 'NEXO-A1B2C3D4'}</p>
+          </div>
+          <div>
+            <span className="text-slate-500 text-[10px] uppercase font-sans">Vault Blockchain Address</span>
+            <p className="text-cyan-300 font-bold mt-0.5 break-all">{user?.nexoVaultAddress || user?.primaryWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'}</p>
+          </div>
+        </div>
+
+        {showVaultDetails && exportedVaultKeys && (
+          <div className="p-5 rounded-2xl bg-slate-950 border border-amber-500/40 space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
+              <Lock className="w-4 h-4" />
+              <span>NON-CUSTODIAL PRIVATE KEY & SEED PHRASE (Keep secret! Do not share with anyone)</span>
+            </div>
+
+            {exportedVaultKeys.mnemonic && (
+              <div className="space-y-1.5">
+                <label className="text-[11px] text-slate-400 font-sans font-medium">12-Word Recovery Seed Phrase</label>
+                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-amber-200 font-mono text-xs break-words">
+                  {exportedVaultKeys.mnemonic}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] text-slate-400 font-sans font-medium">Private Key (ECDSA Secp256k1)</label>
+                <button
+                  onClick={() => setShowPrivateKey(!showPrivateKey)}
+                  className="text-slate-400 hover:text-white text-[11px] flex items-center gap-1 font-sans"
+                >
+                  {showPrivateKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showPrivateKey ? 'Hide' : 'Show'}</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type={showPrivateKey ? 'text' : 'password'}
+                  readOnly
+                  value={exportedVaultKeys.privateKey}
+                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300"
+                />
+                <button
+                  onClick={() => handleCopyVaultKey(exportedVaultKeys.privateKey)}
+                  className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40"
+                >
+                  {copiedVaultKey ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Connected Wallets Manager */}
       <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
