@@ -13,6 +13,17 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
+// CORS & Preflight Options Handler
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // --- AES-256 NON-CUSTODIAL WALLET VAULT ENCRYPTION ENGINE ---
 const VAULT_SECRET_KEY = process.env.VAULT_ENCRYPTION_SECRET || 'nexorum_vault_secure_key_2026_aes256_prod';
 

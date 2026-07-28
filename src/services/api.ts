@@ -1,46 +1,57 @@
 import { NetworkInfo, TokenItem, MarketplaceItem, UserProfile, AdminSettings, SystemStats, AppNotification, SystemAuditLog } from '../types';
 
+async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promise<T> {
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await res.text();
+      console.warn(`[API] Non-JSON response from ${url}:`, text.slice(0, 100));
+      return { success: false, error: `Invalid response format (${res.status})` } as T;
+    }
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    console.error(`[API] Network or parsing error for ${url}:`, err?.message || err);
+    return { success: false, error: err?.message || 'Network request failed' } as T;
+  }
+}
+
 export const api = {
   async getKernelStatus() {
-    const res = await fetch('/api/v1/kernel/status');
-    return res.json();
+    return safeFetchJson('/api/v1/kernel/status');
   },
 
   async loginTelegram(data: { telegramId: string; telegramUsername?: string; firstName?: string; photoUrl?: string }) {
-    const res = await fetch('/api/v1/auth/telegram', {
+    return safeFetchJson('/api/v1/auth/telegram', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
   async updateProfile(data: { userId: string; email?: string; phone?: string; username?: string; avatarUrl?: string }) {
-    const res = await fetch('/api/v1/user/profile', {
+    return safeFetchJson('/api/v1/user/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
   async getNetworks(): Promise<{ success: boolean; networks: NetworkInfo[] }> {
-    const res = await fetch('/api/v1/blockchain/networks');
-    return res.json();
+    return safeFetchJson('/api/v1/blockchain/networks');
   },
 
   async connectWallet(data: { userId: string; address: string; network: string; provider: string; providerName: string }) {
-    const res = await fetch('/api/v1/wallets/connect', {
+    return safeFetchJson('/api/v1/wallets/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
   async getTokens(): Promise<{ success: boolean; tokens: TokenItem[] }> {
-    const res = await fetch('/api/v1/tokens');
-    return res.json();
+    return safeFetchJson('/api/v1/tokens');
   },
 
   async createToken(payload: {
@@ -55,73 +66,63 @@ export const api = {
     userId: string;
     addInitialLiquidityUsd?: number;
   }) {
-    const res = await fetch('/api/v1/tokens/create', {
+    return safeFetchJson('/api/v1/tokens/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return res.json();
   },
 
   async getMarketplace(): Promise<{ success: boolean; items: MarketplaceItem[] }> {
-    const res = await fetch('/api/v1/marketplace');
-    return res.json();
+    return safeFetchJson('/api/v1/marketplace');
   },
 
   async buyMarketplaceItem(itemId: string, userId: string, buyerAddress: string) {
-    const res = await fetch('/api/v1/marketplace/buy', {
+    return safeFetchJson('/api/v1/marketplace/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ itemId, userId, buyerAddress }),
     });
-    return res.json();
   },
 
   async queryAiAssistant(prompt: string, contextType?: string) {
-    const res = await fetch('/api/v1/ai/assistant', {
+    return safeFetchJson('/api/v1/ai/assistant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, contextType }),
     });
-    return res.json();
   },
 
   async getAdminSettings(): Promise<{ success: boolean; settings: AdminSettings }> {
-    const res = await fetch('/api/v1/admin/settings');
-    return res.json();
+    return safeFetchJson('/api/v1/admin/settings');
   },
 
   async saveAdminSettings(settings: Partial<AdminSettings>) {
-    const res = await fetch('/api/v1/admin/settings', {
+    return safeFetchJson('/api/v1/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ settings }),
     });
-    return res.json();
   },
 
   async getAdminLogs(): Promise<{ success: boolean; logs: SystemAuditLog[]; stats: SystemStats }> {
-    const res = await fetch('/api/v1/admin/logs');
-    return res.json();
+    return safeFetchJson('/api/v1/admin/logs');
   },
 
   async getNotifications(): Promise<{ success: boolean; notifications: AppNotification[] }> {
-    const res = await fetch('/api/v1/notifications');
-    return res.json();
+    return safeFetchJson('/api/v1/notifications');
   },
 
   async markNotificationRead(id: string) {
-    const res = await fetch('/api/v1/notifications/read', {
+    return safeFetchJson('/api/v1/notifications/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
-    return res.json();
   },
 
   async getAirdrops() {
-    const res = await fetch('/api/v1/airdrops');
-    return res.json();
+    return safeFetchJson('/api/v1/airdrops');
   },
 
   async createAirdrop(payload: {
@@ -132,127 +133,98 @@ export const api = {
     network: string;
     description: string;
   }) {
-    const res = await fetch('/api/v1/airdrops/create', {
+    return safeFetchJson('/api/v1/airdrops/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return res.json();
   },
 
   async updateAirdropStatus(airdropId: string, status: 'ACTIVE' | 'PAUSED' | 'COMPLETED') {
-    const res = await fetch('/api/v1/airdrops/status', {
+    return safeFetchJson('/api/v1/airdrops/status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ airdropId, status }),
     });
-    return res.json();
   },
 
   async distributeAirdrop(airdropId: string) {
-    const res = await fetch('/api/v1/airdrops/distribute', {
+    return safeFetchJson('/api/v1/airdrops/distribute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ airdropId }),
     });
-    return res.json();
   },
 
   async claimAirdrop(airdropId: string, userId: string) {
-    const res = await fetch('/api/v1/airdrops/claim', {
+    return safeFetchJson('/api/v1/airdrops/claim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ airdropId, userId }),
     });
-    return res.json();
   },
 
   async getDailyAirdropStatus(userId: string) {
-    const res = await fetch(`/api/v1/airdrops/daily-status?userId=${encodeURIComponent(userId)}`);
-    return res.json();
+    return safeFetchJson(`/api/v1/airdrops/daily-status?userId=${encodeURIComponent(userId)}`);
   },
 
   async claimDailyAirdrop(userId: string) {
-    const res = await fetch('/api/v1/airdrops/daily-claim', {
+    return safeFetchJson('/api/v1/airdrops/daily-claim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
     });
-    return res.json();
   },
 
   async generateAiToken(prompt: string) {
-    try {
-      const res = await fetch('/api/v1/ai/generate-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!res.ok) {
-        throw new Error(`Server status ${res.status}`);
-      }
-      return await res.json();
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'AI Generation request failed' };
-    }
+    return safeFetchJson('/api/v1/ai/generate-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
   },
 
   async getStakingPools() {
-    const res = await fetch('/api/v1/staking/pools');
-    return res.json();
+    return safeFetchJson('/api/v1/staking/pools');
   },
 
   async getUserStakes(userId: string) {
-    const res = await fetch(`/api/v1/staking/user-stakes?userId=${encodeURIComponent(userId)}`);
-    return res.json();
+    return safeFetchJson(`/api/v1/staking/user-stakes?userId=${encodeURIComponent(userId)}`);
   },
 
   async stakeNex(userId: string, amountNex: number, durationDays: number) {
-    const res = await fetch('/api/v1/staking/stake', {
+    return safeFetchJson('/api/v1/staking/stake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, amountNex, durationDays }),
     });
-    return res.json();
   },
 
   async unstakeNex(stakeId: string, userId: string) {
-    const res = await fetch('/api/v1/staking/unstake', {
+    return safeFetchJson('/api/v1/staking/unstake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stakeId, userId }),
     });
-    return res.json();
   },
 
   async getNexoVault(userId: string) {
-    const res = await fetch(`/api/v1/user/nexo-vault?userId=${encodeURIComponent(userId)}`);
-    return res.json();
+    return safeFetchJson(`/api/v1/user/nexo-vault?userId=${encodeURIComponent(userId)}`);
   },
 
   async exportNexoVault(userId: string, pin?: string) {
-    const res = await fetch('/api/v1/user/export-nexo-vault', {
+    return safeFetchJson('/api/v1/user/export-nexo-vault', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, pin }),
     });
-    return res.json();
   },
 
   async generateTokenLogo(name: string, symbol: string, style?: string, description?: string) {
-    try {
-      const res = await fetch('/api/v1/ai/generate-logo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, symbol, style, description }),
-      });
-      if (!res.ok) {
-        throw new Error(`Server status ${res.status}`);
-      }
-      return await res.json();
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'AI Logo request failed' };
-    }
+    return safeFetchJson('/api/v1/ai/generate-logo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, symbol, style, description }),
+    });
   },
 };
-
