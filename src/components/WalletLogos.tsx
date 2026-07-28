@@ -158,6 +158,14 @@ export const NexoVaultLogo: React.FC<LogoProps> = ({ className = "w-6 h-6" }) =>
   </svg>
 );
 
+export const TonWalletLogo: React.FC<LogoProps> = ({ className = "w-6 h-6" }) => (
+  <svg className={className} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="32" height="32" rx="16" fill="#0098EA"/>
+    <path d="M16 6L26 12.5L16 26L6 12.5L16 6ZM16 9.8L9.5 13.8L16 21.8L22.5 13.8L16 9.8Z" fill="#FFFFFF"/>
+    <path d="M16 13L12 15.5L16 20.5L20 15.5L16 13Z" fill="#0077B5"/>
+  </svg>
+);
+
 export const WalletLogoMap: Record<string, React.FC<LogoProps>> = {
   metamask: MetaMaskLogo,
   trust: TrustWalletLogo,
@@ -167,6 +175,7 @@ export const WalletLogoMap: Record<string, React.FC<LogoProps>> = {
   phantom: PhantomLogo,
   walletconnect: WalletConnectLogo,
   tonkeeper: TonkeeperLogo,
+  ton_wallet: TonWalletLogo,
   rainbow: RainbowLogo,
   bitget: BitgetLogo,
   crypto_com: CryptoComLogo,

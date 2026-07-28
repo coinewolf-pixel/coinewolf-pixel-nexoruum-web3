@@ -359,16 +359,21 @@ export const WalletModal: React.FC = () => {
                           {filteredReownWallets.map((wallet) => (
                             <motion.button
                               key={wallet.id}
-                              whileHover={{ scale: 1.02 }}
+                              whileHover={{ scale: 1.02, y: -2 }}
                               whileTap={{ scale: 0.98 }}
                               onClick={() => handleOpenReownWalletFlow(wallet)}
-                              className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/50 transition-all text-left flex items-center gap-3 group relative"
+                              className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800/90 hover:border-cyan-500/50 transition-all text-left flex items-center gap-3 group relative shadow-md shadow-slate-950/40"
                             >
-                              <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
-                                {getWalletLogo(wallet.id, "w-6 h-6")}
+                              <div className={`p-2 rounded-xl ${wallet.iconBg || 'bg-slate-900 border border-slate-800'} flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform`}>
+                                {getWalletLogo(wallet.id, "w-6 h-6 drop-shadow")}
                               </div>
-                              <div className="overflow-hidden">
-                                <p className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">{wallet.name}</p>
+                              <div className="overflow-hidden flex-1">
+                                <div className="flex items-center gap-1">
+                                  <p className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">{wallet.name}</p>
+                                  {wallet.popular && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+                                  )}
+                                </div>
                                 <span className="text-[9px] text-slate-500 capitalize">{wallet.category}</span>
                               </div>
                             </motion.button>
@@ -441,10 +446,14 @@ export const WalletModal: React.FC = () => {
                           >
                             ← Back to Catalog
                           </button>
-                          <span className="text-xs font-bold text-cyan-400 flex items-center gap-1">
-                            <Smartphone className="w-3.5 h-3.5" />
-                            <span>{selectedReownWallet.name}</span>
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800">
+                              {getWalletLogo(selectedReownWallet.id, "w-5 h-5")}
+                            </div>
+                            <span className="text-xs font-bold text-cyan-400 flex items-center gap-1">
+                              <span>{selectedReownWallet.name}</span>
+                            </span>
+                          </div>
                         </div>
 
                         {/* QR Code and Universal Link Box */}
@@ -521,32 +530,39 @@ export const WalletModal: React.FC = () => {
                       <motion.button
                         key={provider.id}
                         id={`btn_connect_${provider.id}`}
-                        whileHover={{ scale: 1.01 }}
+                        whileHover={{ scale: 1.01, x: 2 }}
                         whileTap={{ scale: 0.99 }}
                         disabled={connecting}
                         onClick={() => handleSelectWallet(provider.id)}
                         className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 group ${
                           isSelected
-                            ? 'bg-cyan-950/60 border-cyan-500/80 text-white'
-                            : 'bg-slate-950/60 hover:bg-slate-800/80 border-slate-800/80 hover:border-slate-700 text-slate-300'
+                            ? 'bg-cyan-950/70 border-cyan-500/80 text-white shadow-lg shadow-cyan-950/40'
+                            : 'bg-slate-950/70 hover:bg-slate-900/90 border-slate-800/80 hover:border-slate-700 text-slate-300'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
-                            {getWalletLogo(provider.id, "w-6 h-6")}
+                        <div className="flex items-center gap-3.5">
+                          <div className="p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shrink-0 shadow-inner group-hover:border-cyan-500/40 transition-colors">
+                            {getWalletLogo(provider.id, "w-7 h-7 drop-shadow-md")}
                           </div>
                           <div className="text-left">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-white">{provider.name}</span>
+                              <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">{provider.name}</span>
                               {provider.isPopular && (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase tracking-wider">
                                   Direct Extension
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-500 font-medium">
-                              Supports {provider.supportedNetworks.slice(0, 3).join(', ').toUpperCase()}
-                            </span>
+                            <div className="flex items-center gap-1 mt-1">
+                              {provider.supportedNetworks.slice(0, 4).map((net) => (
+                                <span key={net} className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-900/90 border border-slate-800 text-slate-400 uppercase">
+                                  {net}
+                                </span>
+                              ))}
+                              {provider.supportedNetworks.length > 4 && (
+                                <span className="text-[9px] text-slate-500 font-mono">+{provider.supportedNetworks.length - 4}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
 

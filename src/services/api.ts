@@ -12,7 +12,7 @@ async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promi
     const data = await res.json();
     return data;
   } catch (err: any) {
-    console.error(`[API] Network or parsing error for ${url}:`, err?.message || err);
+    console.warn(`[API] Network or parsing notice for ${url}:`, err?.message || err);
     return { success: false, error: err?.message || 'Network request failed' } as T;
   }
 }
