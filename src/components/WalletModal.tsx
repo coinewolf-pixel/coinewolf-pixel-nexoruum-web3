@@ -27,6 +27,7 @@ import {
 import { useWallet, SUPPORTED_WALLET_PROVIDERS } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
 import { WalletProviderId, NetworkId } from '../types';
+import { getWalletLogo } from './WalletLogos';
 
 const WALLET_ICONS: Record<WalletProviderId, React.ReactNode> = {
   nexorum_vault: <Cpu className="w-6 h-6 text-amber-400" />,
@@ -322,8 +323,8 @@ export const WalletModal: React.FC = () => {
                       onClick={() => handleOpenReownWalletFlow(wallet)}
                       className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/50 transition-all text-left flex items-center gap-3 group relative"
                     >
-                      <div className={`p-2.5 rounded-xl ${wallet.iconBg} flex items-center justify-center shrink-0`}>
-                        <Smartphone className={`w-5 h-5 ${wallet.color}`} />
+                      <div className={`p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0`}>
+                        {getWalletLogo(wallet.id, "w-6 h-6")}
                       </div>
                       <div className="overflow-hidden">
                         <p className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">{wallet.name}</p>
@@ -462,8 +463,8 @@ export const WalletModal: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
-                      {WALLET_ICONS[provider.id]}
+                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+                      {getWalletLogo(provider.id, "w-6 h-6")}
                     </div>
                     <div className="text-left">
                       <div className="flex items-center gap-2">

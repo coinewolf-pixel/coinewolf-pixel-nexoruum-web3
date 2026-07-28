@@ -182,12 +182,19 @@ export const api = {
   },
 
   async generateAiToken(prompt: string) {
-    const res = await fetch('/api/v1/ai/generate-token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    return res.json();
+    try {
+      const res = await fetch('/api/v1/ai/generate-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) {
+        throw new Error(`Server status ${res.status}`);
+      }
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'AI Generation request failed' };
+    }
   },
 
   async getStakingPools() {
@@ -233,12 +240,19 @@ export const api = {
   },
 
   async generateTokenLogo(name: string, symbol: string, style?: string, description?: string) {
-    const res = await fetch('/api/v1/ai/generate-logo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, symbol, style, description }),
-    });
-    return res.json();
+    try {
+      const res = await fetch('/api/v1/ai/generate-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, symbol, style, description }),
+      });
+      if (!res.ok) {
+        throw new Error(`Server status ${res.status}`);
+      }
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'AI Logo request failed' };
+    }
   },
 };
 

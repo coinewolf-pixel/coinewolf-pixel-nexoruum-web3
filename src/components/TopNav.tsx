@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { formatAddress } from '../lib/utils';
 import { NetworkId } from '../types';
+import { getWalletLogo } from './WalletLogos';
 
 interface TopNavProps {
   setActiveTab: (tab: string) => void;
@@ -136,7 +137,7 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
               : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-cyan-500/25'
           }`}
         >
-          <Wallet className="w-4 h-4" />
+          {activeWallet ? getWalletLogo(activeWallet.providerId, "w-4 h-4") : <Wallet className="w-4 h-4" />}
           <span>
             {activeWallet
               ? `${activeWallet.providerName} (${formatAddress(activeWallet.address)})`

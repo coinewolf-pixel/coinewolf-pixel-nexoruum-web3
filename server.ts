@@ -870,6 +870,76 @@ app.post('/api/v1/ai/generate-logo', async (req, res) => {
   res.json({ success: true, logoUrl });
 });
 
+app.post('/api/v1/ai/generate-token', async (req, res) => {
+  const { prompt } = req.body;
+
+  let name = 'Cyber Nexus';
+  let symbol = 'CYNEX';
+  let totalSupply = '100000000';
+  let decimals = 18;
+  let network = 'nexorum';
+  let description = 'Next-gen decentralized AI token built on NEXORUM OS kernel.';
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: `You are a Web3 token architect. Based on the user prompt: "${prompt}", generate JSON data with fields: name, symbol (3-6 chars), totalSupply (numeric string), decimals (9 or 18), network (one of: nexorum, ethereum, bsc, polygon, solana, ton), description. Return ONLY raw JSON.`,
+      });
+
+      const rawText = response.text || '';
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.name) name = parsed.name;
+        if (parsed.symbol) symbol = parsed.symbol.toUpperCase();
+        if (parsed.totalSupply) totalSupply = String(parsed.totalSupply);
+        if (parsed.decimals) decimals = Number(parsed.decimals);
+        if (parsed.network) network = parsed.network.toLowerCase();
+        if (parsed.description) description = parsed.description;
+      }
+    } else {
+      // Prompt based procedural generation
+      const cleanPrompt = (prompt || 'token').replace(/[^a-zA-Z0-9 ]/g, '');
+      const words = cleanPrompt.trim().split(' ').filter(Boolean);
+      if (words.length > 0) {
+        name = words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Token';
+        symbol = words.map(w => w.charAt(0).toUpperCase()).join('').slice(0, 5) || 'TKN';
+        if (symbol.length < 3) symbol = (symbol + 'X').toUpperCase();
+      }
+    }
+  } catch (err: any) {
+    console.error('AI Generate Token Error:', err?.message || err);
+  }
+
+  // Generate branded SVG logo for the token
+  const colors = [
+    ['#06b6d4', '#3b82f6'],
+    ['#8b5cf6', '#ec4899'],
+    ['#f59e0b', '#ef4444'],
+    ['#10b981', '#06b6d4'],
+  ];
+  const pair = colors[Math.floor(Math.random() * colors.length)];
+  const symChar = symbol.slice(0, 3);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${pair[0]}"/><stop offset="100%" stop-color="${pair[1]}"/></linearGradient></defs><rect width="256" height="256" rx="128" fill="url(#g)"/><circle cx="128" cy="128" r="100" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="8"/><text x="128" y="142" font-family="sans-serif" font-weight="900" font-size="56" fill="#ffffff" text-anchor="middle">${symChar}</text></svg>`;
+  const logoUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+
+  res.json({
+    success: true,
+    aiData: {
+      name,
+      symbol,
+      totalSupply,
+      decimals,
+      network,
+      description,
+      logoUrl,
+    },
+  });
+});
+
 app.post('/api/v1/ai/assistant', async (req, res) => {
   const { prompt, contextType } = req.body;
 
