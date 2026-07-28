@@ -23,6 +23,8 @@ import {
   Calendar,
   Coins,
   Newspaper,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
@@ -60,7 +62,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
   const [selectedDuration, setSelectedDuration] = useState<number>(30);
   const [stakeAmountInput, setStakeAmountInput] = useState<string>('10');
   const [isStaking, setIsStaking] = useState(false);
+  const [stakingStatusStep, setStakingStatusStep] = useState<string | null>(null);
+  const [stakingError, setStakingError] = useState<string | null>(null);
   const [isUnstakingId, setIsUnstakingId] = useState<string | null>(null);
+  const [unstakeError, setUnstakeError] = useState<Record<string, string>>({});
 
   // 3D Panel State
   const [activeTokenIndex, setActiveTokenIndex] = useState(0);
@@ -187,33 +192,51 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
     }
 
     setIsStaking(true);
-    try {
-      const res = await api.stakeNex(user.id, numAmt, selectedDuration);
-      if (res.success) {
-        addToast('NEX Tokens Staked! 🔒', res.message, 'success');
-        loadData();
-      } else {
-        addToast('Staking Error', res.error || 'Failed to stake NEX tokens.', 'error');
+    setStakingError(null);
+    setStakingStatusStep('Authorizing Staking Vault Smart Contract...');
+
+    setTimeout(() => {
+      setStakingStatusStep('Broadcasting Lock Transaction to Blockchain...');
+    }, 500);
+
+    setTimeout(async () => {
+      try {
+        const res = await api.stakeNex(user.id, numAmt, selectedDuration);
+        if (res.success) {
+          setStakingStatusStep('Transaction Confirmed! On-Chain Lock Active.');
+          addToast('NEX Tokens Staked! 🔒', res.message, 'success');
+          loadData();
+          setTimeout(() => setStakingStatusStep(null), 2500);
+        } else {
+          setStakingError(res.error || 'Failed to stake NEX tokens.');
+          setStakingStatusStep(null);
+          addToast('Staking Error', res.error || 'Failed to stake NEX tokens.', 'error');
+        }
+      } catch (err: any) {
+        setStakingError(err.message || 'Error executing staking transaction');
+        setStakingStatusStep(null);
+        addToast('Staking Error', err.message || 'Error executing staking transaction', 'error');
+      } finally {
+        setIsStaking(false);
       }
-    } catch (err: any) {
-      addToast('Staking Error', err.message || 'Error executing staking transaction', 'error');
-    } finally {
-      setIsStaking(false);
-    }
+    }, 1100);
   };
 
   const handleUnstakeNex = async (stakeId: string) => {
     if (!user) return;
     setIsUnstakingId(stakeId);
+    setUnstakeError((prev) => ({ ...prev, [stakeId]: '' }));
     try {
       const res = await api.unstakeNex(stakeId, user.id);
       if (res.success) {
         addToast('Unstaked & Payout Collected! 🎉', res.message, 'success');
         loadData();
       } else {
+        setUnstakeError((prev) => ({ ...prev, [stakeId]: res.error || 'Failed to unstake NEX.' }));
         addToast('Unstake Error', res.error || 'Failed to unstake NEX.', 'error');
       }
     } catch (err: any) {
+      setUnstakeError((prev) => ({ ...prev, [stakeId]: err.message || 'Error processing unstake' }));
       addToast('Unstake Error', err.message || 'Error processing unstake', 'error');
     } finally {
       setIsUnstakingId(null);
@@ -594,14 +617,37 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
               </div>
             </div>
 
+            {/* Staking Status Pipeline Banner */}
+            {stakingStatusStep && (
+              <div className="p-3.5 rounded-xl bg-cyan-950/80 border border-cyan-500/50 text-xs text-cyan-200 flex items-center gap-2.5 font-mono shadow-lg">
+                <Loader2 className="w-4 h-4 text-cyan-400 animate-spin shrink-0" />
+                <span className="font-semibold">{stakingStatusStep}</span>
+              </div>
+            )}
+
+            {/* Staking Error Banner */}
+            {stakingError && (
+              <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-500/50 text-xs text-rose-200 space-y-1 font-mono">
+                <div className="flex items-center gap-2 text-rose-300 font-bold">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>Staking Error</span>
+                </div>
+                <p className="text-[11px] text-rose-200/90">{stakingError}</p>
+              </div>
+            )}
+
             <button
               id="btn_stake_nex_now"
               onClick={handleStakeNex}
               disabled={isStaking}
-              className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all"
+              className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-60"
             >
-              <Flame className={`w-4 h-4 ${isStaking ? 'animate-spin' : ''}`} />
-              <span>{isStaking ? 'Staking NEX Tokens...' : `Stake ${stakeAmountInput || '0'} NEX for ${selectedDuration} Days`}</span>
+              {isStaking ? (
+                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+              ) : (
+                <Flame className="w-4 h-4" />
+              )}
+              <span>{isStaking ? 'Processing Staking Transaction...' : `Stake ${stakeAmountInput || '0'} NEX for ${selectedDuration} Days`}</span>
             </button>
           </div>
 
@@ -631,13 +677,22 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
                         <span>Yield: +{stk.estimatedRewardNex} NEX</span>
                         <span className="text-cyan-400 font-mono">{stk.status}</span>
                       </div>
+                      {unstakeError[stk.id] && (
+                        <p className="text-[10px] font-mono text-rose-400 bg-rose-950/60 p-1.5 rounded border border-rose-500/30">
+                          {unstakeError[stk.id]}
+                        </p>
+                      )}
                       <button
                         onClick={() => handleUnstakeNex(stk.id)}
                         disabled={isUnstakingId === stk.id}
-                        className="w-full mt-1 py-1.5 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition-all flex items-center justify-center gap-1"
+                        className="w-full mt-1 py-1.5 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
                       >
-                        <Zap className="w-3 h-3" />
-                        <span>{isUnstakingId === stk.id ? 'Processing...' : 'Unstake & Claim Total Yield'}</span>
+                        {isUnstakingId === stk.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin text-emerald-300" />
+                        ) : (
+                          <Zap className="w-3 h-3" />
+                        )}
+                        <span>{isUnstakingId === stk.id ? 'Unstaking & Collecting Yield...' : 'Unstake & Claim Total Yield'}</span>
                       </button>
                     </div>
                   ))}

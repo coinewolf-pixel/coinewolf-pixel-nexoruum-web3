@@ -12,6 +12,8 @@ import {
   Rocket,
   Check,
   Layers,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
@@ -48,6 +50,7 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
   // Deployment Progress Pipeline
   const [isDeploying, setIsDeploying] = useState(false);
   const [pipelineProgress, setPipelineProgress] = useState<string[]>([]);
+  const [deploymentError, setDeploymentError] = useState<string | null>(null);
   const [deployedToken, setDeployedToken] = useState<any>(null);
 
   const handleAiGenerate = async () => {
@@ -56,6 +59,7 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
       return;
     }
     setIsGeneratingAi(true);
+    setDeploymentError(null);
     try {
       const res = await api.generateAiToken(aiPrompt.trim());
       if (res.success && res.aiData) {
@@ -99,7 +103,17 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
   };
 
   const handleDeployToken = async () => {
+    if (!tokenName.trim() || !tokenSymbol.trim()) {
+      addToast('Missing Fields', 'Token Name and Symbol are required.', 'warning');
+      return;
+    }
+    if (!totalSupply || parseFloat(totalSupply) <= 0) {
+      addToast('Invalid Supply', 'Total supply must be greater than 0.', 'warning');
+      return;
+    }
+
     setIsDeploying(true);
+    setDeploymentError(null);
     setPipelineProgress(['Generating Smart Contract Bytecode...']);
 
     setTimeout(() => {
@@ -136,10 +150,16 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
           setIsDeploying(false);
           setStep(3); // Success step
           addToast('Token Deployed!', `${tokenName} (${tokenSymbol}) deployed on ${network.toUpperCase()}`, 'success');
+        } else {
+          setDeploymentError(res.error || 'Failed to create and index token on blockchain network.');
+          setIsDeploying(false);
+          addToast('Deployment Failed', res.error || 'Failed to create token', 'error');
         }
-      } catch (err) {
-        console.error('Token creation failed:', err);
+      } catch (err: any) {
+        console.warn('Token creation failed:', err);
+        setDeploymentError(err.message || 'Transaction broadcast rejected or network error');
         setIsDeploying(false);
+        addToast('Deployment Error', err.message || 'Network exception during token deployment', 'error');
       }
     }, 3200);
   };
@@ -370,17 +390,44 @@ export const TokenCreatorView: React.FC<TokenCreatorViewProps> = ({ setActiveTab
             </div>
 
             {isDeploying && (
-              <div className="pt-3 border-t border-slate-800 space-y-2">
+              <div className="pt-3 border-t border-slate-800 space-y-2.5">
                 <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold">
-                  <Zap className="w-4 h-4 animate-spin" />
-                  <span>Executing NEXORUM Pipeline...</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                  <span>Executing On-Chain Deployment Pipeline...</span>
                 </div>
-                {pipelineProgress.map((msg, i) => (
-                  <p key={i} className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{msg}</span>
-                  </p>
-                ))}
+                <div className="space-y-1.5 pl-1">
+                  {pipelineProgress.map((msg, i) => {
+                    const isLast = i === pipelineProgress.length - 1;
+                    return (
+                      <div key={i} className="text-[11px] font-mono text-emerald-400 flex items-center gap-2">
+                        {isLast ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400 shrink-0" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        )}
+                        <span className={isLast ? 'text-cyan-300 font-bold' : 'text-emerald-400'}>{msg}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {deploymentError && (
+              <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-500/50 text-xs text-rose-200 space-y-2">
+                <div className="flex items-center gap-2 text-rose-300 font-bold">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>Deployment Transaction Failed</span>
+                </div>
+                <p className="text-[11px] font-mono text-rose-200/90">{deploymentError}</p>
+                <button
+                  type="button"
+                  onClick={handleDeployToken}
+                  className="px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-bold text-[11px] transition-all flex items-center gap-1.5 mt-1"
+                >
+                  <Rocket className="w-3 h-3" />
+                  <span>Retry On-Chain Deployment</span>
+                </button>
               </div>
             )}
           </div>
