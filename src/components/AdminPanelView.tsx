@@ -60,7 +60,7 @@ export const AdminPanelView: React.FC = () => {
         setAirdrops(res.airdrops || []);
       }
     } catch (err) {
-      console.error('Failed to load airdrops:', err);
+      console.warn('Notice loading airdrops:', err);
     }
   };
 

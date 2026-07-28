@@ -96,7 +96,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
         if (resStakes.success && resStakes.stakes) setUserStakes(resStakes.stakes);
       }
     } catch (err) {
-      console.error('Failed to load home data:', err);
+      console.warn('Notice loading home data:', err);
     }
   };
 
