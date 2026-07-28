@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   QrCode,
@@ -181,368 +182,449 @@ export const WalletModal: React.FC = () => {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative space-y-5">
-        {/* Close Button */}
-        <button
-          id="btn_close_wallet_modal"
+    <AnimatePresence>
+      {isModalOpen && (
+        <motion.div
+          key="wallet-modal-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4"
           onClick={closeWalletModal}
-          className="absolute top-5 right-5 text-slate-400 hover:text-white p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 transition-colors"
         >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Title */}
-        <div>
-          <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold tracking-wider uppercase mb-1">
-            <Zap className="w-4 h-4" />
-            <span>Reown AppKit / WalletConnect v2 Engine</span>
-          </div>
-          <h2 className="text-xl font-extrabold text-white">Connect Web3 Wallet or Exchange</h2>
-          <p className="text-slate-400 text-xs mt-1">
-            Choose your preferred mobile wallet, crypto exchange app, browser extension, or enter your wallet address.
-          </p>
-        </div>
-
-        {errorMessage && (
-          <div className="p-3.5 rounded-2xl bg-amber-950/80 border border-amber-500/40 text-amber-200 text-xs space-y-2 animate-in fade-in">
-            <p className="font-semibold">{errorMessage}</p>
-            {errorMessage.includes('Extension') && (
-              <button
-                type="button"
-                onClick={() => {
-                  setConnectTab('manual');
-                  setErrorMessage(null);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-[11px] hover:bg-amber-400 transition-colors"
-              >
-                Switch to 'Real Address Input' Tab →
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Connection Method Tabs */}
-        <div className="grid grid-cols-3 gap-1 p-1 bg-slate-950/80 rounded-2xl border border-slate-800 text-xs font-semibold">
-          <button
-            onClick={() => {
-              setConnectTab('appkit');
-              setSelectedReownWallet(null);
-            }}
-            className={`py-2 rounded-xl transition-all ${
-              connectTab === 'appkit' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
-            }`}
+          <motion.div
+            key="wallet-modal-dialog"
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 16 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative space-y-5"
           >
-            Reown AppKit Directory
-          </button>
-          <button
-            onClick={() => setConnectTab('extensions')}
-            className={`py-2 rounded-xl transition-all ${
-              connectTab === 'extensions' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Browser Extensions
-          </button>
-          <button
-            onClick={() => setConnectTab('manual')}
-            className={`py-2 rounded-xl transition-all ${
-              connectTab === 'manual' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Real Address Input
-          </button>
-        </div>
+            {/* Close Button */}
+            <button
+              id="btn_close_wallet_modal"
+              onClick={closeWalletModal}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
 
-        {/* Target Network Selector */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Target Chain</label>
-            <span className="text-[10px] text-cyan-400 font-mono">Chain ID: {selectedNetwork === 'nexorum' ? '7780' : selectedNetwork === 'ethereum' ? '1' : selectedNetwork === 'bsc' ? '56' : '137'}</span>
-          </div>
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
-            {(['nexorum', 'ethereum', 'bsc', 'polygon', 'arbitrum', 'solana', 'ton'] as NetworkId[]).map((net) => (
-              <button
-                key={net}
-                onClick={() => setSelectedNetwork(net)}
-                className={`py-1.5 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
-                  selectedNetwork === net
-                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-md shadow-cyan-950'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {net}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* TAB 1: Reown AppKit Wallet & Exchange Directory */}
-        {connectTab === 'appkit' && (
-          <div className="space-y-3">
-            {!selectedReownWallet ? (
-              <>
-                {/* Search & Category Filter */}
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={appKitSearch}
-                      onChange={(e) => setAppKitSearch(e.target.value)}
-                      placeholder="Search 300+ wallets & exchanges..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-cyan-500"
-                    />
-                  </div>
-                  <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
-                    <button
-                      onClick={() => setAppKitFilter('all')}
-                      className={`px-2.5 py-1 rounded-lg ${appKitFilter === 'all' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400'}`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setAppKitFilter('wallet')}
-                      className={`px-2.5 py-1 rounded-lg ${appKitFilter === 'wallet' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400'}`}
-                    >
-                      Wallets
-                    </button>
-                    <button
-                      onClick={() => setAppKitFilter('exchange')}
-                      className={`px-2.5 py-1 rounded-lg ${appKitFilter === 'exchange' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400'}`}
-                    >
-                      Exchanges
-                    </button>
-                  </div>
-                </div>
-
-                {/* Grid of Reown Supported Wallets */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
-                  {filteredReownWallets.map((wallet) => (
-                    <button
-                      key={wallet.id}
-                      onClick={() => handleOpenReownWalletFlow(wallet)}
-                      className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/50 transition-all text-left flex items-center gap-3 group relative"
-                    >
-                      <div className={`p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0`}>
-                        {getWalletLogo(wallet.id, "w-6 h-6")}
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">{wallet.name}</p>
-                        <span className="text-[9px] text-slate-500 capitalize">{wallet.category}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                  <span className="flex items-center gap-1.5 text-slate-300">
-                    <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Reown Project ID: <span className="font-mono text-cyan-400">{reownProjectId.slice(0, 10)}...</span></span>
-                  </span>
-                  <button
-                    onClick={() => setShowReownInput(!showReownInput)}
-                    className="text-cyan-400 hover:underline font-semibold"
-                  >
-                    {showReownInput ? 'Hide' : 'Configure'}
-                  </button>
-                </div>
-
-                {showReownInput && (
-                  <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Reown Cloud Project ID (`projectId`)
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={reownProjectId}
-                        onChange={(e) => {
-                          setReownProjectId(e.target.value);
-                          localStorage.setItem('reown_project_id', e.target.value);
-                        }}
-                        placeholder="Enter Reown AppKit Project ID..."
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          localStorage.setItem('reown_project_id', reownProjectId);
-                          setShowReownInput(false);
-                          setErrorMessage('Reown Project ID updated!');
-                        }}
-                        className="px-3 py-1.5 bg-cyan-500 text-slate-950 font-bold text-xs rounded-lg hover:bg-cyan-400"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              /* Selected Wallet Detail & Connection QR Handshake */
-              <div className="space-y-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center animate-in fade-in">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setSelectedReownWallet(null)}
-                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
-                  >
-                    ← Back to Catalog
-                  </button>
-                  <span className="text-xs font-bold text-cyan-400 flex items-center gap-1">
-                    <Smartphone className="w-3.5 h-3.5" />
-                    <span>{selectedReownWallet.name}</span>
-                  </span>
-                </div>
-
-                {/* QR Code and Universal Link Box */}
-                <div className="w-48 h-48 mx-auto p-3 bg-white rounded-2xl flex flex-col items-center justify-center shadow-2xl relative group">
-                  <QrCode className="w-36 h-36 text-slate-900" />
-                  {wcSessionStep === 'generating' && (
-                    <div className="absolute inset-0 bg-slate-950/90 rounded-2xl flex items-center justify-center text-cyan-400 font-bold text-xs gap-2">
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                      <span>Generating WC Session...</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <p className="font-bold text-white">Scan with {selectedReownWallet.name} or tap to open directly</p>
-                  <p className="text-slate-400 text-[11px]">
-                    Open {selectedReownWallet.name} on your phone to scan this QR code or authorize the Web3 handshake request.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  <button
-                    onClick={handleCopyWcUri}
-                    className="py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5"
-                  >
-                    {copiedUri ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedUri ? 'URI Copied!' : 'Copy WC URI'}</span>
-                  </button>
-
-                  <a
-                    href={selectedReownWallet.universalLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="py-2 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center gap-1.5"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Open App</span>
-                  </a>
-                </div>
-
-                <button
-                  onClick={handleConfirmReownConnection}
-                  disabled={connecting}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-950"
-                >
-                  <Zap className="w-4 h-4" />
-                  <span>{connecting ? 'Waiting for Mobile Authorization...' : 'Authorize Connected Session'}</span>
-                </button>
+            {/* Modal Title */}
+            <div>
+              <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold tracking-wider uppercase mb-1">
+                <Zap className="w-4 h-4" />
+                <span>Reown AppKit / WalletConnect v2 Engine</span>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 2: Extension Wallets */}
-        {connectTab === 'extensions' && (
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {SUPPORTED_WALLET_PROVIDERS.map((provider) => {
-              const isSelected = selectedProvider === provider.id;
-              return (
-                <button
-                  key={provider.id}
-                  id={`btn_connect_${provider.id}`}
-                  disabled={connecting}
-                  onClick={() => handleSelectWallet(provider.id)}
-                  className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 group ${
-                    isSelected
-                      ? 'bg-cyan-950/60 border-cyan-500/80 text-white'
-                      : 'bg-slate-950/60 hover:bg-slate-800/80 border-slate-800/80 hover:border-slate-700 text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
-                      {getWalletLogo(provider.id, "w-6 h-6")}
-                    </div>
-                    <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-white">{provider.name}</span>
-                        {provider.isPopular && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">
-                            Direct Extension
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        Supports {provider.supportedNetworks.slice(0, 3).join(', ').toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    {isSelected && connecting ? (
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400 animate-pulse">
-                        <Zap className="w-3.5 h-3.5 animate-spin" />
-                        <span>Prompting Extension...</span>
-                      </div>
-                    ) : (
-                      <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* TAB 3: Manual Real Address Input */}
-        {connectTab === 'manual' && (
-          <form onSubmit={handleManualConnect} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300">Paste Real Wallet Address ({selectedNetwork.toUpperCase()})</label>
-              <input
-                type="text"
-                value={manualAddressInput}
-                onChange={(e) => setManualAddressInput(e.target.value)}
-                placeholder={
-                  selectedNetwork === 'ton'
-                    ? 'EQA... or UQA... (TON Address)'
-                    : selectedNetwork === 'solana'
-                    ? 'Solana Wallet Public Key'
-                    : '0x... (EVM Wallet Address)'
-                }
-                className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-xs text-white outline-none font-mono"
-                required
-              />
+              <h2 className="text-xl font-extrabold text-white">Connect Web3 Wallet or Exchange</h2>
+              <p className="text-slate-400 text-xs mt-1">
+                Choose your preferred mobile wallet, crypto exchange app, browser extension, or enter your wallet address.
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={connecting || !manualAddressInput.trim()}
-              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-950"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Link Real Wallet Address</span>
-            </button>
-          </form>
-        )}
+            {errorMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3.5 rounded-2xl bg-amber-950/80 border border-amber-500/40 text-amber-200 text-xs space-y-2"
+              >
+                <p className="font-semibold">{errorMessage}</p>
+                {errorMessage.includes('Extension') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConnectTab('manual');
+                      setErrorMessage(null);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-[11px] hover:bg-amber-400 transition-colors"
+                  >
+                    Switch to 'Real Address Input' Tab →
+                  </button>
+                )}
+              </motion.div>
+            )}
 
-        {/* Footer & Reset Demo Wallets Option */}
-        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-          <button
-            type="button"
-            onClick={handleResetDemoWallets}
-            className="text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1 hover:underline"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear Demo Wallets</span>
-          </button>
-          <span className="text-slate-500">NEXORUM Reown AppKit v2.4</span>
-        </div>
-      </div>
-    </div>
+            {/* Connection Method Tabs */}
+            <div className="grid grid-cols-3 gap-1 p-1 bg-slate-950/80 rounded-2xl border border-slate-800 text-xs font-semibold">
+              <button
+                onClick={() => {
+                  setConnectTab('appkit');
+                  setSelectedReownWallet(null);
+                }}
+                className={`py-2 rounded-xl transition-all ${
+                  connectTab === 'appkit' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Reown AppKit Directory
+              </button>
+              <button
+                onClick={() => setConnectTab('extensions')}
+                className={`py-2 rounded-xl transition-all ${
+                  connectTab === 'extensions' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Browser Extensions
+              </button>
+              <button
+                onClick={() => setConnectTab('manual')}
+                className={`py-2 rounded-xl transition-all ${
+                  connectTab === 'manual' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Real Address Input
+              </button>
+            </div>
+
+            {/* Target Network Selector */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Target Chain</label>
+                <span className="text-[10px] text-cyan-400 font-mono">Chain ID: {selectedNetwork === 'nexorum' ? '7780' : selectedNetwork === 'ethereum' ? '1' : selectedNetwork === 'bsc' ? '56' : '137'}</span>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                {(['nexorum', 'ethereum', 'bsc', 'polygon', 'arbitrum', 'solana', 'ton'] as NetworkId[]).map((net) => (
+                  <button
+                    key={net}
+                    onClick={() => setSelectedNetwork(net)}
+                    className={`py-1.5 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                      selectedNetwork === net
+                        ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-md shadow-cyan-950'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {net}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Animated Tab Content */}
+            <AnimatePresence mode="wait">
+              {connectTab === 'appkit' && (
+                <motion.div
+                  key="tab-appkit"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="space-y-3"
+                >
+                  <AnimatePresence mode="wait">
+                    {!selectedReownWallet ? (
+                      <motion.div
+                        key="reown-catalog"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.15 }}
+                        className="space-y-3"
+                      >
+                        {/* Search & Category Filter */}
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                            <input
+                              type="text"
+                              value={appKitSearch}
+                              onChange={(e) => setAppKitSearch(e.target.value)}
+                              placeholder="Search 300+ wallets & exchanges..."
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                          <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
+                            <button
+                              onClick={() => setAppKitFilter('all')}
+                              className={`px-2.5 py-1 rounded-lg ${appKitFilter === 'all' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400'}`}
+                            >
+                              All
+                            </button>
+                            <button
+                              onClick={() => setAppKitFilter('wallet')}
+                              className={`px-2.5 py-1 rounded-lg ${appKitFilter === 'wallet' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400'}`}
+                            >
+                              Wallets
+                            </button>
+                            <button
+                              onClick={() => setAppKitFilter('exchange')}
+                              className={`px-2.5 py-1 rounded-lg ${appKitFilter === 'exchange' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400'}`}
+                            >
+                              Exchanges
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Grid of Reown Supported Wallets */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                          {filteredReownWallets.map((wallet) => (
+                            <motion.button
+                              key={wallet.id}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => handleOpenReownWalletFlow(wallet)}
+                              className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/50 transition-all text-left flex items-center gap-3 group relative"
+                            >
+                              <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+                                {getWalletLogo(wallet.id, "w-6 h-6")}
+                              </div>
+                              <div className="overflow-hidden">
+                                <p className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">{wallet.name}</p>
+                                <span className="text-[9px] text-slate-500 capitalize">{wallet.category}</span>
+                              </div>
+                            </motion.button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                          <span className="flex items-center gap-1.5 text-slate-300">
+                            <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>Reown Project ID: <span className="font-mono text-cyan-400">{reownProjectId.slice(0, 10)}...</span></span>
+                          </span>
+                          <button
+                            onClick={() => setShowReownInput(!showReownInput)}
+                            className="text-cyan-400 hover:underline font-semibold"
+                          >
+                            {showReownInput ? 'Hide' : 'Configure'}
+                          </button>
+                        </div>
+
+                        {showReownInput && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 overflow-hidden"
+                          >
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                              Reown Cloud Project ID (`projectId`)
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={reownProjectId}
+                                onChange={(e) => {
+                                  setReownProjectId(e.target.value);
+                                  localStorage.setItem('reown_project_id', e.target.value);
+                                }}
+                                placeholder="Enter Reown AppKit Project ID..."
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  localStorage.setItem('reown_project_id', reownProjectId);
+                                  setShowReownInput(false);
+                                  setErrorMessage('Reown Project ID updated!');
+                                }}
+                                className="px-3 py-1.5 bg-cyan-500 text-slate-950 font-bold text-xs rounded-lg hover:bg-cyan-400"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </motion.div>
+                    ) : (
+                      /* Selected Wallet Detail & Connection QR Handshake */
+                      <motion.div
+                        key="reown-detail"
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.18 }}
+                        className="space-y-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center"
+                      >
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => setSelectedReownWallet(null)}
+                            className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                          >
+                            ← Back to Catalog
+                          </button>
+                          <span className="text-xs font-bold text-cyan-400 flex items-center gap-1">
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>{selectedReownWallet.name}</span>
+                          </span>
+                        </div>
+
+                        {/* QR Code and Universal Link Box */}
+                        <div className="w-48 h-48 mx-auto p-3 bg-white rounded-2xl flex flex-col items-center justify-center shadow-2xl relative group">
+                          <QrCode className="w-36 h-36 text-slate-900" />
+                          {wcSessionStep === 'generating' && (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="absolute inset-0 bg-slate-950/90 rounded-2xl flex items-center justify-center text-cyan-400 font-bold text-xs gap-2"
+                            >
+                              <RefreshCw className="w-5 h-5 animate-spin" />
+                              <span>Generating WC Session...</span>
+                            </motion.div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          <p className="font-bold text-white">Scan with {selectedReownWallet.name} or tap to open directly</p>
+                          <p className="text-slate-400 text-[11px]">
+                            Open {selectedReownWallet.name} on your phone to scan this QR code or authorize the Web3 handshake request.
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <button
+                            onClick={handleCopyWcUri}
+                            className="py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5"
+                          >
+                            {copiedUri ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedUri ? 'URI Copied!' : 'Copy WC URI'}</span>
+                          </button>
+
+                          <a
+                            href={selectedReownWallet.universalLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="py-2 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center gap-1.5"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Open App</span>
+                          </a>
+                        </div>
+
+                        <motion.button
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={handleConfirmReownConnection}
+                          disabled={connecting}
+                          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-950"
+                        >
+                          <Zap className="w-4 h-4" />
+                          <span>{connecting ? 'Waiting for Mobile Authorization...' : 'Authorize Connected Session'}</span>
+                        </motion.button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+
+              {/* TAB 2: Extension Wallets */}
+              {connectTab === 'extensions' && (
+                <motion.div
+                  key="tab-extensions"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="space-y-2 max-h-64 overflow-y-auto pr-1"
+                >
+                  {SUPPORTED_WALLET_PROVIDERS.map((provider) => {
+                    const isSelected = selectedProvider === provider.id;
+                    return (
+                      <motion.button
+                        key={provider.id}
+                        id={`btn_connect_${provider.id}`}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        disabled={connecting}
+                        onClick={() => handleSelectWallet(provider.id)}
+                        className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 group ${
+                          isSelected
+                            ? 'bg-cyan-950/60 border-cyan-500/80 text-white'
+                            : 'bg-slate-950/60 hover:bg-slate-800/80 border-slate-800/80 hover:border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+                            {getWalletLogo(provider.id, "w-6 h-6")}
+                          </div>
+                          <div className="text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-white">{provider.name}</span>
+                              {provider.isPopular && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">
+                                  Direct Extension
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Supports {provider.supportedNetworks.slice(0, 3).join(', ').toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          {isSelected && connecting ? (
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400 animate-pulse">
+                              <Zap className="w-3.5 h-3.5 animate-spin" />
+                              <span>Prompting Extension...</span>
+                            </div>
+                          ) : (
+                            <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                          )}
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </motion.div>
+              )}
+
+              {/* TAB 3: Manual Real Address Input */}
+              {connectTab === 'manual' && (
+                <motion.form
+                  key="tab-manual"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  onSubmit={handleManualConnect}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-300">Paste Real Wallet Address ({selectedNetwork.toUpperCase()})</label>
+                    <input
+                      type="text"
+                      value={manualAddressInput}
+                      onChange={(e) => setManualAddressInput(e.target.value)}
+                      placeholder={
+                        selectedNetwork === 'ton'
+                          ? 'EQA... or UQA... (TON Address)'
+                          : selectedNetwork === 'solana'
+                          ? 'Solana Wallet Public Key'
+                          : '0x... (EVM Wallet Address)'
+                      }
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-xs text-white outline-none font-mono"
+                      required
+                    />
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    type="submit"
+                    disabled={connecting || !manualAddressInput.trim()}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-950"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Link Real Wallet Address</span>
+                  </motion.button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+
+            {/* Footer & Reset Demo Wallets Option */}
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+              <button
+                type="button"
+                onClick={handleResetDemoWallets}
+                className="text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1 hover:underline"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear Demo Wallets</span>
+              </button>
+              <span className="text-slate-500">NEXORUM Reown AppKit v2.4</span>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
