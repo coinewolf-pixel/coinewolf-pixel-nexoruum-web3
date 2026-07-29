@@ -41,6 +41,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
 import { TokenItem, TransactionRecord, AirdropCampaign } from '../types';
 import { formatCurrency, formatNumber, formatAddress, timeAgo } from '../lib/utils';
+import { NetworkMetricsDashboard } from './NetworkMetricsDashboard';
 
 interface HomeViewProps {
   setActiveTab: (tab: string) => void;
@@ -465,6 +466,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
           </div>
         </div>
       </div>
+
+      {/* NEXORUM CHAIN NETWORK METRICS & GAS FEE TRENDS DASHBOARD (RECHARTS) */}
+      <NetworkMetricsDashboard />
 
       {/* DAILY CHECK-IN & STREAK AIRDROP REWARDS SECTION */}
       <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-950/90 via-slate-900 to-indigo-950/90 border border-purple-500/40 shadow-2xl space-y-5 relative overflow-hidden">

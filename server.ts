@@ -794,6 +794,69 @@ app.post('/api/v1/bridge/transfer', (req, res) => {
   });
 });
 
+// 7d. NEXORUM Chain Network Metrics & Gas Fee Analytics Endpoint
+app.get('/api/v1/network/metrics', (req, res) => {
+  const timeframe = (req.query.timeframe as string) || '24h';
+
+  // Generate dynamic 24-hour gas fee and active user trends
+  const hourlyData24h = [
+    { time: '00:00', gasGwei: 0.22, gasUsd: 0.003, activeUsers: 84200, l1GasGwei: 28.4, tps: 2150 },
+    { time: '02:00', gasGwei: 0.18, gasUsd: 0.002, activeUsers: 72100, l1GasGwei: 24.1, tps: 1980 },
+    { time: '04:00', gasGwei: 0.15, gasUsd: 0.002, activeUsers: 64500, l1GasGwei: 21.8, tps: 1840 },
+    { time: '06:00', gasGwei: 0.16, gasUsd: 0.002, activeUsers: 78900, l1GasGwei: 25.6, tps: 2210 },
+    { time: '08:00', gasGwei: 0.28, gasUsd: 0.004, activeUsers: 112400, l1GasGwei: 38.2, tps: 3120 },
+    { time: '10:00', gasGwei: 0.35, gasUsd: 0.005, activeUsers: 138900, l1GasGwei: 46.5, tps: 3950 },
+    { time: '12:00', gasGwei: 0.31, gasUsd: 0.004, activeUsers: 149200, l1GasGwei: 42.1, tps: 4180 },
+    { time: '14:00', gasGwei: 0.29, gasUsd: 0.004, activeUsers: 156400, l1GasGwei: 39.8, tps: 4420 },
+    { time: '16:00', gasGwei: 0.33, gasUsd: 0.005, activeUsers: 168100, l1GasGwei: 48.2, tps: 4780 },
+    { time: '18:00', gasGwei: 0.26, gasUsd: 0.004, activeUsers: 152800, l1GasGwei: 36.4, tps: 4290 },
+    { time: '20:00', gasGwei: 0.21, gasUsd: 0.003, activeUsers: 131500, l1GasGwei: 31.0, tps: 3640 },
+    { time: '22:00', gasGwei: 0.19, gasUsd: 0.003, activeUsers: 104200, l1GasGwei: 27.2, tps: 2890 },
+  ];
+
+  const weeklyData7d = [
+    { time: 'Mon', gasGwei: 0.24, gasUsd: 0.003, activeUsers: 118400, l1GasGwei: 32.5, tps: 3410 },
+    { time: 'Tue', gasGwei: 0.26, gasUsd: 0.004, activeUsers: 129800, l1GasGwei: 36.1, tps: 3680 },
+    { time: 'Wed', gasGwei: 0.29, gasUsd: 0.004, activeUsers: 142100, l1GasGwei: 41.2, tps: 4050 },
+    { time: 'Thu', gasGwei: 0.27, gasUsd: 0.004, activeUsers: 138600, l1GasGwei: 38.9, tps: 3920 },
+    { time: 'Fri', gasGwei: 0.34, gasUsd: 0.005, activeUsers: 165400, l1GasGwei: 49.8, tps: 4690 },
+    { time: 'Sat', gasGwei: 0.21, gasUsd: 0.003, activeUsers: 151200, l1GasGwei: 29.4, tps: 4120 },
+    { time: 'Sun', gasGwei: 0.18, gasUsd: 0.002, activeUsers: 139500, l1GasGwei: 24.8, tps: 3840 },
+  ];
+
+  const monthlyData30d = [
+    { time: 'Week 1', gasGwei: 0.22, gasUsd: 0.003, activeUsers: 945000, l1GasGwei: 31.0, tps: 3100 },
+    { time: 'Week 2', gasGwei: 0.25, gasUsd: 0.004, activeUsers: 1120000, l1GasGwei: 37.5, tps: 3650 },
+    { time: 'Week 3', gasGwei: 0.28, gasUsd: 0.004, activeUsers: 1350000, l1GasGwei: 44.2, tps: 4200 },
+    { time: 'Week 4', gasGwei: 0.23, gasUsd: 0.003, activeUsers: 1580000, l1GasGwei: 33.8, tps: 4780 },
+  ];
+
+  let selectedSeries = hourlyData24h;
+  if (timeframe === '7d') selectedSeries = weeklyData7d;
+  else if (timeframe === '30d') selectedSeries = monthlyData30d;
+
+  res.json({
+    success: true,
+    chainName: 'NEXORUM Sovereign Chain (Chain ID: 7780)',
+    timeframe,
+    summary: {
+      currentGasGwei: 0.19,
+      currentGasUsd: 0.0028,
+      averageL1GasGwei: 34.6,
+      gasSavingsPct: 99.4,
+      activeUsers24h: 168100,
+      activeUsersGrowth24h: '+18.4%',
+      totalTransactions24h: 4289150,
+      averageTps: 3650,
+      peakTps: 4780,
+      blockTimeMs: 250,
+      paymasterSubsidizedUsd: 142850,
+    },
+    data: selectedSeries,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // 7c. Staking Dashboard Endpoints (Lock NEXORUM Tokens for Yield)
 app.get('/api/v1/staking/positions', (req, res) => {
   const userId = (req.query.userId as string) || 'usr_nex_982341';
