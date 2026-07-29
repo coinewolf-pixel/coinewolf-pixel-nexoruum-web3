@@ -8,7 +8,8 @@ export const CHAIN_RPC_MAP: Record<string, string> = {
   polygon: 'https://polygon-rpc.com',
   arbitrum: 'https://arb1.arbitrum.io/rpc',
   base: 'https://mainnet.base.org',
-  nexorum: 'https://eth.llamarpc.com', // Nexorum EVM RPC gateway
+  nexorum: 'https://eth.llamarpc.com', // Nexorum Mainnet EVM RPC gateway
+  nexorum_testnet: 'https://eth.llamarpc.com', // Nexorum Testnet EVM RPC gateway
 };
 
 // USDT ERC-20 / BEP-20 contracts per network

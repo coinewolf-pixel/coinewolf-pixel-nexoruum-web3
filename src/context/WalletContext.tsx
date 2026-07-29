@@ -48,10 +48,22 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+export const DEFAULT_NETWORKS: NetworkInfo[] = [
+  { id: 'nexorum', name: 'NEXORUM Mainnet', symbol: 'NEX', icon: 'nexorum', chainId: 7780, rpcUrl: 'https://rpc.nexorum.network', explorerUrl: 'https://explorer.nexorum.network', gasPriceGwei: 0.01, blockHeight: 1892014, isPopular: true },
+  { id: 'nexorum_testnet', name: 'NEXORUM Testnet', symbol: 'tNEX', icon: 'nexorum', chainId: 7781, rpcUrl: 'https://testnet-rpc.nexorum.network', explorerUrl: 'https://testnet-explorer.nexorum.network', gasPriceGwei: 0.001, blockHeight: 982145, isPopular: true },
+  { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: 'eth', chainId: 1, rpcUrl: 'https://eth.llamarpc.com', explorerUrl: 'https://etherscan.io', gasPriceGwei: 14.2, blockHeight: 19824150, isPopular: true },
+  { id: 'bsc', name: 'BNB Smart Chain', symbol: 'BNB', icon: 'bnb', chainId: 56, rpcUrl: 'https://bsc-dataseed.binance.org/', explorerUrl: 'https://bscscan.com', gasPriceGwei: 3.0, blockHeight: 38291024, isPopular: true },
+  { id: 'polygon', name: 'Polygon', symbol: 'POL', icon: 'polygon', chainId: 137, rpcUrl: 'https://polygon-rpc.com', explorerUrl: 'https://polygonscan.com', gasPriceGwei: 31.8, blockHeight: 56201948, isPopular: true },
+  { id: 'arbitrum', name: 'Arbitrum One', symbol: 'ETH', icon: 'arbitrum', chainId: 42161, rpcUrl: 'https://arb1.arbitrum.io/rpc', explorerUrl: 'https://arbiscan.io', gasPriceGwei: 0.1, blockHeight: 210291024, isPopular: true },
+  { id: 'base', name: 'Base', symbol: 'ETH', icon: 'base', chainId: 8453, rpcUrl: 'https://mainnet.base.org', explorerUrl: 'https://basescan.org', gasPriceGwei: 0.05, blockHeight: 14820193, isPopular: true },
+  { id: 'solana', name: 'Solana', symbol: 'SOL', icon: 'solana', chainId: 'solana-mainnet', rpcUrl: 'https://api.mainnet-beta.solana.com', explorerUrl: 'https://solscan.io', gasPriceGwei: 0.000005, blockHeight: 278102931, isPopular: true },
+  { id: 'ton', name: 'TON Network', symbol: 'TON', icon: 'ton', chainId: 'ton-mainnet', rpcUrl: 'https://toncenter.com/api/v2/jsonRPC', explorerUrl: 'https://tonscan.org', gasPriceGwei: 0.005, blockHeight: 39102941, isPopular: true },
+];
+
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, addWalletToProfile, removeWalletFromProfile } = useAuth();
-  const [networks, setNetworks] = useState<NetworkInfo[]>([]);
-  const [activeNetwork, setActiveNetwork] = useState<NetworkInfo | null>(null);
+  const [networks, setNetworks] = useState<NetworkInfo[]>(DEFAULT_NETWORKS);
+  const [activeNetwork, setActiveNetwork] = useState<NetworkInfo | null>(DEFAULT_NETWORKS[0]);
   const [activeWallet, setActiveWallet] = useState<ConnectedWallet | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncingBalances, setIsSyncingBalances] = useState(false);
@@ -103,9 +115,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     api.getNetworks().then((res) => {
-      if (res.success && res.networks) {
+      if (res.success && res.networks && res.networks.length > 0) {
         setNetworks(res.networks);
-        setActiveNetwork(res.networks[0]); // Default Ethereum
+        setActiveNetwork((prev) => prev || res.networks[0]);
       }
     });
   }, []);

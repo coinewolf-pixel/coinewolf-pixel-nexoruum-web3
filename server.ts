@@ -369,6 +369,7 @@ const db = {
     cloudflareWorkerUrl: 'https://nexoria778.coinewolf.workers.dev/',
     rpcUrls: {
       nexorum: 'https://rpc.nexorum.network',
+      nexorum_testnet: 'https://testnet-rpc.nexorum.network',
       ethereum: 'https://eth-mainnet.g.alchemy.com/v2/demo',
       bsc: 'https://bsc-dataseed.binance.org/',
       polygon: 'https://polygon-rpc.com/',
@@ -578,7 +579,8 @@ app.get('/api/v1/blockchain/networks', (req, res) => {
   res.json({
     success: true,
     networks: [
-      { id: 'nexorum', name: 'NEXORUM Chain', symbol: 'NEX', icon: 'nexorum', chainId: 7780, rpcUrl: db.settings.rpcUrls.nexorum, explorerUrl: 'https://explorer.nexorum.network', gasPriceGwei: 0.01, blockHeight: 1892014, isPopular: true },
+      { id: 'nexorum', name: 'NEXORUM Mainnet', symbol: 'NEX', icon: 'nexorum', chainId: 7780, rpcUrl: db.settings.rpcUrls.nexorum, explorerUrl: 'https://explorer.nexorum.network', gasPriceGwei: 0.01, blockHeight: 1892014, isPopular: true },
+      { id: 'nexorum_testnet', name: 'NEXORUM Testnet', symbol: 'tNEX', icon: 'nexorum', chainId: 7781, rpcUrl: 'https://testnet-rpc.nexorum.network', explorerUrl: 'https://testnet-explorer.nexorum.network', gasPriceGwei: 0.001, blockHeight: 982145, isPopular: true },
       { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: 'eth', chainId: 1, rpcUrl: db.settings.rpcUrls.ethereum, explorerUrl: 'https://etherscan.io', gasPriceGwei: 14.2, blockHeight: 19824150, isPopular: true },
       { id: 'bsc', name: 'BNB Smart Chain', symbol: 'BNB', icon: 'bnb', chainId: 56, rpcUrl: db.settings.rpcUrls.bsc, explorerUrl: 'https://bscscan.com', gasPriceGwei: 3.0, blockHeight: 38291024, isPopular: true },
       { id: 'polygon', name: 'Polygon', symbol: 'POL', icon: 'polygon', chainId: 137, rpcUrl: db.settings.rpcUrls.polygon, explorerUrl: 'https://polygonscan.com', gasPriceGwei: 31.8, blockHeight: 56201948, isPopular: true },

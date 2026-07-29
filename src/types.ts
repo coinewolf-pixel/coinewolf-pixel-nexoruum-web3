@@ -1,4 +1,4 @@
-export type NetworkId = 'nexorum' | 'ethereum' | 'bsc' | 'polygon' | 'arbitrum' | 'base' | 'solana' | 'ton';
+export type NetworkId = 'nexorum' | 'nexorum_testnet' | 'ethereum' | 'bsc' | 'polygon' | 'arbitrum' | 'base' | 'solana' | 'ton';
 
 export interface NetworkInfo {
   id: NetworkId;

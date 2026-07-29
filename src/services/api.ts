@@ -108,6 +108,7 @@ export const api = {
         cloudflareWorkerUrl: 'https://nexoria778.coinewolf.workers.dev/',
         rpcUrls: {
           nexorum: 'https://rpc.nexorum.os',
+          nexorum_testnet: 'https://testnet-rpc.nexorum.os',
           ethereum: 'https://eth-mainnet.g.alchemy.com/v2/demo',
           solana: 'https://api.mainnet-beta.solana.com',
           polygon: 'https://polygon-rpc.com',

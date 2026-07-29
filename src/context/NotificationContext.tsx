@@ -18,7 +18,11 @@ interface NotificationContextType {
   openDrawer: () => void;
   closeDrawer: () => void;
   markAsRead: (id: string) => void;
-  addToast: (title: string, message: string, type?: Toast['type']) => void;
+  addToast: (
+    titleOrObj: string | { title: string; message: string; type?: Toast['type'] },
+    message?: string,
+    type?: Toast['type']
+  ) => void;
   removeToast: (id: string) => void;
 }
 
@@ -65,9 +69,26 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, []);
 
-  const addToast = (title: string, message: string, type: Toast['type'] = 'info') => {
+  const addToast = (
+    titleOrObj: string | { title: string; message: string; type?: Toast['type'] },
+    message?: string,
+    type: Toast['type'] = 'info'
+  ) => {
+    let titleStr = '';
+    let msgStr = '';
+    let toastType = type;
+
+    if (typeof titleOrObj === 'object' && titleOrObj !== null) {
+      titleStr = titleOrObj.title;
+      msgStr = titleOrObj.message;
+      toastType = titleOrObj.type || 'info';
+    } else {
+      titleStr = String(titleOrObj || '');
+      msgStr = String(message || '');
+    }
+
     const id = `toast_${Date.now()}_${Math.random()}`;
-    setToasts((prev) => [...prev, { id, title, message, type }]);
+    setToasts((prev) => [...prev, { id, title: titleStr, message: msgStr, type: toastType }]);
     setTimeout(() => {
       removeToast(id);
     }, 4500);
