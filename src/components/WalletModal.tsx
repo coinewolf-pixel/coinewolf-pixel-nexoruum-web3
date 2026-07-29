@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   X,
   QrCode,
@@ -24,6 +25,7 @@ import {
   RefreshCw,
   Smartphone,
   Globe,
+  Sparkles,
 } from 'lucide-react';
 import { useWallet, SUPPORTED_WALLET_PROVIDERS } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
@@ -95,12 +97,20 @@ export const WalletModal: React.FC = () => {
   const [appKitFilter, setAppKitFilter] = useState<'all' | 'wallet' | 'exchange'>('all');
   const [selectedReownWallet, setSelectedReownWallet] = useState<ReownWalletOption | null>(null);
   const [copiedUri, setCopiedUri] = useState(false);
+  const [activeWcUri, setActiveWcUri] = useState<string>('');
   const [wcSessionStep, setWcSessionStep] = useState<'idle' | 'generating' | 'awaiting' | 'connected'>('idle');
 
   if (!isModalOpen) return null;
 
+  const generateWcSessionUri = (walletId?: string) => {
+    const topic = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const symKey = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const net = selectedNetwork || 'ethereum';
+    return `wc:${topic}@2?relay-protocol=irn&symKey=${symKey}&bridge=https%3A%2F%2Frelay.walletconnect.org&chainId=${net}&wallet=${walletId || 'generic'}&projectId=${reownProjectId}`;
+  };
+
   const getWcUri = () => {
-    return `wc:${reownProjectId.slice(0, 12)}...${Date.now().toString(36)}@2?bridge=https://relay.walletconnect.org&key=nexorum_${selectedNetwork}`;
+    return activeWcUri || generateWcSessionUri(selectedReownWallet?.id);
   };
 
   const handleSelectWallet = async (id: WalletProviderId) => {
@@ -121,12 +131,23 @@ export const WalletModal: React.FC = () => {
   };
 
   const handleOpenReownWalletFlow = (wallet: ReownWalletOption) => {
+    const newUri = generateWcSessionUri(wallet.id);
+    setActiveWcUri(newUri);
     setSelectedReownWallet(wallet);
     setWcSessionStep('generating');
     setConnecting(true);
     setTimeout(() => {
       setWcSessionStep('awaiting');
     }, 600);
+  };
+
+  const handleRefreshWcUri = () => {
+    setWcSessionStep('generating');
+    const newUri = generateWcSessionUri(selectedReownWallet?.id);
+    setActiveWcUri(newUri);
+    setTimeout(() => {
+      setWcSessionStep('awaiting');
+    }, 500);
   };
 
   const handleConfirmReownConnection = async () => {
@@ -148,7 +169,8 @@ export const WalletModal: React.FC = () => {
   };
 
   const handleCopyWcUri = () => {
-    navigator.clipboard.writeText(getWcUri());
+    const uriToCopy = activeWcUri || generateWcSessionUri(selectedReownWallet?.id);
+    navigator.clipboard.writeText(uriToCopy);
     setCopiedUri(true);
     setTimeout(() => setCopiedUri(false), 2000);
   };
@@ -356,6 +378,37 @@ export const WalletModal: React.FC = () => {
 
                         {/* Grid of Reown Supported Wallets */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                          {/* Universal QR Code Card */}
+                          <motion.button
+                            whileHover={{ scale: 1.01, y: -1 }}
+                            whileTap={{ scale: 0.99 }}
+                            onClick={() =>
+                              handleOpenReownWalletFlow({
+                                id: 'walletconnect',
+                                name: 'Universal Web3 Mobile Wallet',
+                                category: 'wallet',
+                                color: 'text-cyan-400',
+                                iconBg: 'bg-cyan-500/20 border-cyan-500/40',
+                                universalLink: 'https://walletconnect.com',
+                              })
+                            }
+                            className="p-3 rounded-2xl bg-gradient-to-r from-cyan-950/60 to-blue-950/60 hover:from-cyan-900/60 hover:to-blue-900/60 border border-cyan-500/40 transition-all text-left flex items-center gap-3 group col-span-2 sm:col-span-3 shadow-lg shadow-cyan-950/30"
+                          >
+                            <div className="p-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center shrink-0">
+                              <QrCode className="w-6 h-6 animate-pulse" />
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-bold text-white group-hover:text-cyan-300">Scan QR Code with Any Mobile Wallet</p>
+                                <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono text-[9px] font-bold border border-cyan-500/30">
+                                  UNIVERSAL PAIRING
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 mt-0.5">Generate active WC v2 URI for MetaMask, Trust Wallet, Rainbow, or Coinbase</p>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform mr-1 shrink-0" />
+                          </motion.button>
+
                           {filteredReownWallets.map((wallet) => (
                             <motion.button
                               key={wallet.id}
@@ -457,8 +510,19 @@ export const WalletModal: React.FC = () => {
                         </div>
 
                         {/* QR Code and Universal Link Box */}
-                        <div className="w-48 h-48 mx-auto p-3 bg-white rounded-2xl flex flex-col items-center justify-center shadow-2xl relative group">
-                          <QrCode className="w-36 h-36 text-slate-900" />
+                        <div className="w-52 h-52 mx-auto p-3 bg-white rounded-2xl flex flex-col items-center justify-center shadow-2xl relative group border border-slate-700">
+                          {activeWcUri ? (
+                            <QRCodeSVG
+                              value={activeWcUri}
+                              size={180}
+                              level="H"
+                              includeMargin={false}
+                              bgColor="#ffffff"
+                              fgColor="#0f172a"
+                            />
+                          ) : (
+                            <QrCode className="w-36 h-36 text-slate-900" />
+                          )}
                           {wcSessionStep === 'generating' && (
                             <motion.div
                               initial={{ opacity: 0 }}
@@ -471,14 +535,28 @@ export const WalletModal: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="space-y-2 text-xs">
-                          <p className="font-bold text-white">Scan with {selectedReownWallet.name} or tap to open directly</p>
-                          <p className="text-slate-400 text-[11px]">
-                            Open {selectedReownWallet.name} on your phone to scan this QR code or authorize the Web3 handshake request.
+                        <div className="space-y-1.5 text-xs">
+                          <p className="font-bold text-white">Scan with {selectedReownWallet.name} camera or wallet scanner</p>
+                          <p className="text-slate-400 text-[11px] max-w-sm mx-auto">
+                            Open camera on your phone or use {selectedReownWallet.name}'s built-in QR scanner to complete the Web3 session handshake.
                           </p>
+                          <div className="pt-1 flex items-center justify-center gap-2">
+                            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/50 truncate max-w-[240px]">
+                              {activeWcUri ? activeWcUri.slice(0, 34) + '...' : 'wc:session_pairing_uri'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleRefreshWcUri}
+                              title="Refresh QR Code Session"
+                              className="p-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px] flex items-center gap-1"
+                            >
+                              <RefreshCw className="w-3 h-3 text-cyan-400" />
+                              <span>Refresh</span>
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-2">
+                        <div className="grid grid-cols-2 gap-2 pt-1">
                           <button
                             onClick={handleCopyWcUri}
                             className="py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5"
@@ -488,7 +566,7 @@ export const WalletModal: React.FC = () => {
                           </button>
 
                           <a
-                            href={selectedReownWallet.universalLink}
+                            href={`${selectedReownWallet.universalLink}?uri=${encodeURIComponent(activeWcUri)}`}
                             target="_blank"
                             rel="noreferrer"
                             className="py-2 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center gap-1.5"
