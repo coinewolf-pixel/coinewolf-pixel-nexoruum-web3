@@ -25,6 +25,7 @@ import { formatAddress, formatCurrency } from '../lib/utils';
 import { api } from '../services/api';
 import { ChangeProfilePictureModal } from './ChangeProfilePictureModal';
 import { PortfolioSummary } from './PortfolioSummary';
+import { StakingDashboard } from './StakingDashboard';
 
 export const ProfileView: React.FC = () => {
   const { user, updateProfile, removeWalletFromProfile, clearDemoWallets } = useAuth();
@@ -328,6 +329,9 @@ export const ProfileView: React.FC = () => {
 
       {/* Aggregated Portfolio Summary Module (Live CoinGecko Prices) */}
       <PortfolioSummary />
+
+      {/* NEXORUM High-Yield Staking Dashboard Module */}
+      <StakingDashboard />
 
       {/* Non-Custodial NEXO Protocol Vault */}
       <div className="p-6 rounded-3xl bg-slate-900 border border-amber-500/30 shadow-2xl space-y-4">

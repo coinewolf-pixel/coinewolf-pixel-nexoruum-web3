@@ -348,15 +348,21 @@ const db = {
     {
       id: 'stake_demo_1',
       userId: 'usr_nex_982341',
+      poolId: 'pool_30d',
+      poolName: '30-Day High Yield Lock',
+      contractAddress: '0xStaking_7780_Vault_30D',
       amountNex: 50,
+      amount: 50,
       durationDays: 30,
       apyPercent: 25,
+      multiplier: 1.25,
       estimatedRewardNex: 1.02,
+      earnedRewardNex: 1.02,
       stakedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
       maturesAt: new Date(Date.now() + 86400000 * 25).toISOString(),
       status: 'ACTIVE',
     },
-  ],
+  ] as any[],
   dailyClaims: {} as Record<string, { streak: number; lastClaimTimestamp: number; totalClaimed: number }>,
   settings: {
     walletConnectProjectId: process.env.WALLETCONNECT_PROJECT_ID || '8a381920392019382019382',
@@ -785,6 +791,246 @@ app.post('/api/v1/bridge/transfer', (req, res) => {
     relayerFee: '0.0001 ETH ($0.34 USD)',
     estimatedTimeSeconds: 2,
     message: `Successfully transferred ${amount} ${asset} from ${sourceChain.toUpperCase()} to ${destChain.toUpperCase()} on NEXORUM Multi-Chain Bridge Router!`,
+  });
+});
+
+// 7c. Staking Dashboard Endpoints (Lock NEXORUM Tokens for Yield)
+app.get('/api/v1/staking/positions', (req, res) => {
+  const userId = (req.query.userId as string) || 'usr_nex_982341';
+  const user = db.users.find((u) => u.id === userId) || db.users[0];
+  const stakes = db.userStakes.filter((s: any) => s.userId === user.id || s.userId === 'usr_nex_982341');
+
+  const activeStakes = stakes.filter((s: any) => s.status === 'ACTIVE');
+  const totalStakedNex = activeStakes.reduce((sum: number, s: any) => sum + (parseFloat(s.amountNex || s.amount || '0') || 0), 0);
+  const totalEarnedNex = stakes.reduce((sum: number, s: any) => sum + (parseFloat(s.earnedRewardNex || s.estimatedRewardNex || s.earnedRewards || '0') || 0), 0);
+  const priceUsd = 12.45; // NEX token price
+
+  const pools = [
+    {
+      id: 'pool_flex',
+      name: 'Flexible Staking Vault',
+      lockDays: 0,
+      apyPercent: 8.5,
+      multiplier: '1.0x',
+      minStake: 10,
+      contractAddress: '0xStaking_7780_Flex_Vault',
+      description: 'Zero lock period. Withdraw anytime with real-time interest compounding.',
+      badge: 'Flexible'
+    },
+    {
+      id: 'pool_30d',
+      name: '30-Day High Yield Lock',
+      lockDays: 30,
+      apyPercent: 18.2,
+      multiplier: '1.25x',
+      minStake: 50,
+      contractAddress: '0xStaking_7780_Vault_30D',
+      description: '30-Day Smart Contract vault with 1.25x yield boost.',
+      badge: 'Popular'
+    },
+    {
+      id: 'pool_90d',
+      name: '90-Day Quantum Multiplier',
+      lockDays: 90,
+      apyPercent: 36.5,
+      multiplier: '1.8x',
+      minStake: 100,
+      contractAddress: '0xStaking_7780_Vault_90D',
+      description: 'High APY 90-day lock with automated daily auto-compounding.',
+      badge: 'High APY'
+    },
+    {
+      id: 'pool_365d',
+      name: '365-Day Genesis Sovereign Lock',
+      lockDays: 365,
+      apyPercent: 85.0,
+      multiplier: '3.5x',
+      minStake: 500,
+      contractAddress: '0xStaking_7780_Genesis_365D',
+      description: 'Maximum yield 1-year lock with protocol governance voting rights & VIP Airdrop priority.',
+      badge: 'Max Yield'
+    }
+  ];
+
+  res.json({
+    success: true,
+    priceUsd,
+    totalStakedNex,
+    totalStakedUsd: totalStakedNex * priceUsd,
+    totalEarnedNex,
+    totalEarnedUsd: totalEarnedNex * priceUsd,
+    activeStakesCount: activeStakes.length,
+    pools,
+    stakes,
+  });
+});
+
+app.post('/api/v1/staking/stake', (req, res) => {
+  const { poolId, amountNex, userId } = req.body;
+  if (!amountNex || parseFloat(amountNex) <= 0) {
+    return res.status(400).json({ error: 'Invalid stake amount' });
+  }
+
+  const user = db.users.find((u) => u.id === userId) || db.users[0];
+  const numAmount = parseFloat(amountNex);
+
+  let lockDays = 30;
+  let apyPercent = 18.2;
+  let multiplier = 1.25;
+  let poolName = '30-Day High Yield Lock';
+  let contractAddress = '0xStaking_7780_Vault_30D';
+
+  if (poolId === 'pool_flex') {
+    lockDays = 0;
+    apyPercent = 8.5;
+    multiplier = 1.0;
+    poolName = 'Flexible Staking Vault';
+    contractAddress = '0xStaking_7780_Flex_Vault';
+  } else if (poolId === 'pool_90d') {
+    lockDays = 90;
+    apyPercent = 36.5;
+    multiplier = 1.8;
+    poolName = '90-Day Quantum Multiplier';
+    contractAddress = '0xStaking_7780_Vault_90D';
+  } else if (poolId === 'pool_365d') {
+    lockDays = 365;
+    apyPercent = 85.0;
+    multiplier = 3.5;
+    poolName = '365-Day Genesis Sovereign Lock';
+    contractAddress = '0xStaking_7780_Genesis_365D';
+  }
+
+  const estimatedRewardNex = (numAmount * (apyPercent / 100) * (Math.max(1, lockDays) / 365)).toFixed(2);
+  const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+  const newStake = {
+    id: `stake_${Date.now()}`,
+    userId: user.id,
+    poolId: poolId || 'pool_30d',
+    poolName,
+    contractAddress,
+    amountNex: numAmount,
+    durationDays: lockDays,
+    apyPercent,
+    multiplier,
+    estimatedRewardNex: parseFloat(estimatedRewardNex),
+    earnedRewardNex: 0,
+    stakedAt: new Date().toISOString(),
+    maturesAt: new Date(Date.now() + 86400000 * Math.max(1, lockDays)).toISOString(),
+    status: 'ACTIVE',
+    txHash,
+  };
+
+  db.userStakes.unshift(newStake);
+
+  db.transactions.unshift({
+    id: `tx_stake_${Date.now()}`,
+    userId: user.id,
+    hash: txHash,
+    network: 'nexorum',
+    type: 'STAKE_LOCK',
+    status: 'CONFIRMED',
+    amount: amountNex.toString(),
+    symbol: 'NEX',
+    amountUsd: numAmount * 12.45,
+    fromAddress: user.primaryWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    toAddress: contractAddress,
+    blockNumber: Math.floor(19000000 + Math.random() * 1000000),
+    createdAt: new Date().toISOString(),
+    gasFeeUsd: 0.05,
+  });
+
+  db.auditLogs.unshift({
+    id: `log_${Date.now()}`,
+    userId: user.id,
+    action: 'STAKING_CONTRACT_LOCKED',
+    category: 'BLOCKCHAIN',
+    details: `Locked ${numAmount} NEX in ${poolName} (${apyPercent}% APY, ${lockDays} Days lock period) on NEXORUM Staking Vault Contract.`,
+    ipAddress: req.ip || '127.0.0.1',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    userId: user.id,
+    title: 'Tokens Locked in Staking Vault',
+    message: `Successfully locked ${numAmount} NEX in ${poolName}! Earning ${apyPercent}% APY. Tx Hash: ${txHash.slice(0, 10)}...`,
+    type: 'WALLET',
+    isRead: false,
+    actionUrl: '/profile',
+    createdAt: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    stake: newStake,
+    txHash,
+    message: `Successfully locked ${numAmount} NEX in ${poolName} for ${lockDays} days at ${apyPercent}% APY!`,
+  });
+});
+
+app.post('/api/v1/staking/claim', (req, res) => {
+  const { stakeId, userId } = req.body;
+  const user = db.users.find((u) => u.id === userId) || db.users[0];
+  const stake = db.userStakes.find((s: any) => s.id === stakeId || s.userId === user.id);
+
+  const claimedAmount = stake ? (stake.earnedRewardNex || stake.estimatedRewardNex || 12.5) : 12.5;
+  const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+  if (stake) {
+    stake.earnedRewardNex = 0;
+  }
+
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    userId: user.id,
+    title: 'Staking Rewards Claimed',
+    message: `Claimed ${claimedAmount} NEX staking yield into your primary wallet! Tx: ${txHash.slice(0, 10)}...`,
+    type: 'WALLET',
+    isRead: false,
+    actionUrl: '/profile',
+    createdAt: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    claimedAmount,
+    claimedUsd: (parseFloat(claimedAmount.toString()) || 12.5) * 12.45,
+    txHash,
+    message: `Claimed ${claimedAmount} NEX yield rewards directly to your wallet!`,
+  });
+});
+
+app.post('/api/v1/staking/unstake', (req, res) => {
+  const { stakeId, userId } = req.body;
+  const user = db.users.find((u) => u.id === userId) || db.users[0];
+  const stakeIndex = db.userStakes.findIndex((s: any) => s.id === stakeId);
+
+  let unstakedAmount = 50;
+  if (stakeIndex !== -1) {
+    unstakedAmount = db.userStakes[stakeIndex].amountNex || db.userStakes[stakeIndex].amount || 50;
+    db.userStakes[stakeIndex].status = 'UNSTAKED';
+  }
+
+  const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    userId: user.id,
+    title: 'Staking Contract Unstaked',
+    message: `Unstaked ${unstakedAmount} NEX tokens and returned to wallet! Tx: ${txHash.slice(0, 10)}...`,
+    type: 'WALLET',
+    isRead: false,
+    actionUrl: '/profile',
+    createdAt: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    unstakedAmount,
+    txHash,
+    message: `Successfully unstaked ${unstakedAmount} NEX tokens and unlocked contract!`,
   });
 });
 
