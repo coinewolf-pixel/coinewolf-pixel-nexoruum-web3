@@ -20,6 +20,18 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  CartesianGrid,
+} from 'recharts';
 import { formatCurrency, formatNumber } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
@@ -472,6 +484,101 @@ export const PortfolioSummary: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Interactive Recharts Portfolio Allocation Analytics */}
+      <motion.div
+        initial={{ opacity: 0, y: 22, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+        className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-900 pb-3">
+          <div className="flex items-center gap-2">
+            <PieChart className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              Interactive Asset Allocation & Recharts Analytics
+            </h3>
+          </div>
+          <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2.5 py-1 rounded-lg border border-cyan-800/50">
+            Framer Motion Animated
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          {/* Donut PieChart */}
+          <div className="h-52 w-full relative flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsPieChart>
+                <RechartsTooltip
+                  content={({ active, payload }: any) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-slate-900/95 border border-cyan-500/40 p-2.5 rounded-xl text-xs font-mono shadow-xl space-y-1">
+                          <p className="font-bold text-white">{data.name} ({data.symbol})</p>
+                          <p className="text-cyan-300 font-black">{formatCurrency(data.value)}</p>
+                          <p className="text-slate-400 text-[10px]">{data.share.toFixed(1)}% of total portfolio</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Pie
+                  data={holdingsWithShare.map((h) => ({
+                    name: h.name,
+                    symbol: h.symbol,
+                    value: h.totalValueUsd,
+                    share: h.portfolioSharePercent,
+                    color: h.color,
+                  }))}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={80}
+                  paddingAngle={4}
+                  dataKey="value"
+                  isAnimationActive={true}
+                  animationDuration={1500}
+                  animationBegin={200}
+                  animationEasing="ease-in-out"
+                >
+                  {holdingsWithShare.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="#090d16" strokeWidth={2.5} />
+                  ))}
+                </Pie>
+              </RechartsPieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+              <span className="text-[10px] text-slate-500 font-mono font-bold uppercase">Total Value</span>
+              <span className="text-sm font-black text-white font-mono">{formatCurrency(totalPortfolioValueUsd)}</span>
+            </div>
+          </div>
+
+          {/* Allocation Chips Grid */}
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              Asset Weight Distribution
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              {holdingsWithShare.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    <span className="font-bold text-slate-200">{item.symbol}</span>
+                  </div>
+                  <div className="text-right font-mono">
+                    <span className="font-bold text-white text-[11px]">{item.portfolioSharePercent.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Asset Distribution Bar */}
       <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">

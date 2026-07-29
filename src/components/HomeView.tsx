@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion } from 'motion/react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -355,7 +356,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
           </div>
 
           {/* 7-Day Token Asset Value Line Chart */}
-          <div className="mb-5 bg-slate-950/70 p-4 rounded-2xl border border-slate-800/90 space-y-2">
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-5 bg-slate-950/70 p-4 rounded-2xl border border-slate-800/90 space-y-2"
+          >
             <div className="flex items-center justify-between text-xs mb-1">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-cyan-400" />
@@ -401,11 +407,15 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
                     fillOpacity={1}
                     fill="url(#tokenAssetGradient)"
                     activeDot={{ r: 5, stroke: '#22d3ee', strokeWidth: 2, fill: '#0891b2' }}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationBegin={200}
+                    animationEasing="ease-in-out"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-slate-800/80 pt-4">
             <div>

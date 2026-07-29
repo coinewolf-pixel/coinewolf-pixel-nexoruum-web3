@@ -282,7 +282,12 @@ export const NetworkMetricsDashboard: React.FC = () => {
       <div className="space-y-4">
         {/* Gas Fee Trend Chart Section */}
         {(activeMetricView === 'combined' || activeMetricView === 'gas') && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="p-4 sm:p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3"
+          >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -332,6 +337,10 @@ export const NetworkMetricsDashboard: React.FC = () => {
                     strokeDasharray="4 4"
                     fillOpacity={1}
                     fill="url(#l1GasGrad)"
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationBegin={200}
+                    animationEasing="ease-in-out"
                   />
                   <Area
                     type="monotone"
@@ -341,16 +350,25 @@ export const NetworkMetricsDashboard: React.FC = () => {
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#nexorumGasGrad)"
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationBegin={350}
+                    animationEasing="ease-in-out"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Active User Growth & TPS Chart Section */}
         {(activeMetricView === 'combined' || activeMetricView === 'users') && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            className="p-4 sm:p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3"
+          >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -381,12 +399,30 @@ export const NetworkMetricsDashboard: React.FC = () => {
                   <XAxis dataKey="time" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="activeUsers" name="Active Users" fill="#6366f1" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="tps" name="Network TPS" fill="#34d399" radius={[6, 6, 0, 0]} />
+                  <Bar
+                    dataKey="activeUsers"
+                    name="Active Users"
+                    fill="#6366f1"
+                    radius={[6, 6, 0, 0]}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationBegin={200}
+                    animationEasing="ease-in-out"
+                  />
+                  <Bar
+                    dataKey="tps"
+                    name="Network TPS"
+                    fill="#34d399"
+                    radius={[6, 6, 0, 0]}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationBegin={350}
+                    animationEasing="ease-in-out"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>
