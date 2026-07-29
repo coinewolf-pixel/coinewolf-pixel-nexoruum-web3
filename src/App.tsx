@@ -13,6 +13,7 @@ import { DiscoverView } from './components/DiscoverView';
 import { TokenCreatorView } from './components/TokenCreatorView';
 import { MarketplaceView } from './components/MarketplaceView';
 import { AiAssistantView } from './components/AiAssistantView';
+import { AiQuantumSentinelView } from './components/AiQuantumSentinelView';
 import { SearchView } from './components/SearchView';
 import { ProfileView } from './components/ProfileView';
 import { AdminPanelView } from './components/AdminPanelView';
@@ -57,6 +58,8 @@ function MainContent() {
         return <TokenCreatorView setActiveTab={setActiveTab} />;
       case 'marketplace':
         return <MarketplaceView />;
+      case 'sentinel':
+        return <AiQuantumSentinelView setActiveTab={setActiveTab} />;
       case 'ai':
         return <AiAssistantView />;
       case 'search':

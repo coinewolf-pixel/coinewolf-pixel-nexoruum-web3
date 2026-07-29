@@ -27,6 +27,7 @@ export const NEXORUM_PLUGIN_MANIFEST: KernelPluginManifest = {
     { id: 'discover', label: 'Discover & Tokens', icon: 'Compass', path: '/discover', badge: 'HOT' },
     { id: 'creator', label: 'Token Creator', icon: 'PlusCircle', path: '/token-creator', badge: 'NEW' },
     { id: 'marketplace', label: 'Marketplace', icon: 'ShoppingBag', path: '/marketplace' },
+    { id: 'sentinel', label: 'AI Quantum Sentinel', icon: 'Cpu', path: '/sentinel', badge: 'AI 3.6' },
     { id: 'ai', label: 'AI Assistant', icon: 'Bot', path: '/ai-assistant' },
     { id: 'search', label: 'Global Search', icon: 'Search', path: '/search' },
     { id: 'profile', label: 'User Profile', icon: 'User', path: '/profile' },

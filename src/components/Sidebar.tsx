@@ -16,6 +16,7 @@ import {
   Unlock,
   ExternalLink,
   ShieldCheck,
+  Cpu,
 } from 'lucide-react';
 import { NEXORUM_PLUGIN_MANIFEST } from '../lib/nexorumKernel';
 import { cn } from '../lib/utils';
@@ -31,6 +32,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Compass: <Compass className="w-5 h-5" />,
   PlusCircle: <PlusCircle className="w-5 h-5" />,
   ShoppingBag: <ShoppingBag className="w-5 h-5" />,
+  Cpu: <Cpu className="w-5 h-5" />,
   Bot: <Bot className="w-5 h-5" />,
   Search: <Search className="w-5 h-5" />,
   User: <User className="w-5 h-5" />,
