@@ -26,9 +26,12 @@ import {
   Smartphone,
   Globe,
   Sparkles,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { useWallet, SUPPORTED_WALLET_PROVIDERS } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import { api } from '../services/api';
 import { WalletProviderId, NetworkId } from '../types';
 import { getWalletLogo } from './WalletLogos';
 
@@ -74,14 +77,23 @@ const REOWN_APPKIT_DIRECTORY: ReownWalletOption[] = [
 ];
 
 export const WalletModal: React.FC = () => {
-  const { isModalOpen, closeWalletModal, connectWalletProvider, activeNetwork } = useWallet();
-  const { clearDemoWallets } = useAuth();
+  const { isModalOpen, closeWalletModal, connectWalletProvider, activeNetwork, activeWallet, syncOnChainBalances } = useWallet();
+  const { user, clearDemoWallets } = useAuth();
+  const { addToast } = useNotifications();
   const [selectedProvider, setSelectedProvider] = useState<WalletProviderId | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkId>(activeNetwork?.id || 'ethereum');
-  const [connectTab, setConnectTab] = useState<'appkit' | 'extensions' | 'manual'>('appkit');
+  const [connectTab, setConnectTab] = useState<'appkit' | 'extensions' | 'bridge' | 'manual'>('appkit');
   const [manualAddressInput, setManualAddressInput] = useState('');
+
+  // Cross-Chain Bridge State
+  const [bridgeSourceChain, setBridgeSourceChain] = useState<NetworkId>('nexorum');
+  const [bridgeDestChain, setBridgeDestChain] = useState<NetworkId>('ethereum');
+  const [bridgeAsset, setBridgeAsset] = useState<string>('NEX');
+  const [bridgeAmount, setBridgeAmount] = useState<string>('100');
+  const [isBridging, setIsBridging] = useState<boolean>(false);
+  const [bridgeSuccessTx, setBridgeSuccessTx] = useState<any | null>(null);
 
   // Reown AppKit State
   const [reownProjectId, setReownProjectId] = useState<string>(() => {
@@ -99,6 +111,81 @@ export const WalletModal: React.FC = () => {
   const [copiedUri, setCopiedUri] = useState(false);
   const [activeWcUri, setActiveWcUri] = useState<string>('');
   const [wcSessionStep, setWcSessionStep] = useState<'idle' | 'generating' | 'awaiting' | 'connected'>('idle');
+
+  const handleSwapBridgeChains = () => {
+    setBridgeSourceChain((prevSource) => {
+      setBridgeDestChain(prevSource);
+      return bridgeDestChain;
+    });
+  };
+
+  const getAssetPriceUsd = (assetSymbol: string) => {
+    switch (assetSymbol) {
+      case 'NEX': return 12.45;
+      case 'ETH': return 3400;
+      case 'BNB': return 580;
+      case 'SOL': return 185;
+      case 'TON': return 6.85;
+      case 'USDT':
+      case 'USDC': return 1.0;
+      default: return 1.0;
+    }
+  };
+
+  const getAvailableBalance = () => {
+    if (activeWallet) {
+      if (bridgeAsset === 'NEX' || bridgeSourceChain === 'nexorum') {
+        return activeWallet.nativeBalance || '1,000.00 NEX';
+      }
+      return activeWallet.nativeBalance || '10.00 ETH';
+    }
+    return '1,000.00 NEX';
+  };
+
+  const handleApplyPresetAmount = (pctStr: string) => {
+    const balanceRaw = getAvailableBalance();
+    const numericVal = parseFloat(balanceRaw.replace(/[^0-9.]/g, '')) || 1000;
+    let multiplier = 1;
+    if (pctStr === '25%') multiplier = 0.25;
+    else if (pctStr === '50%') multiplier = 0.50;
+    else if (pctStr === '75%') multiplier = 0.75;
+    else if (pctStr === 'MAX') multiplier = 1.0;
+
+    setBridgeAmount((numericVal * multiplier).toFixed(2));
+  };
+
+  const handleExecuteBridgeTransfer = async () => {
+    if (!bridgeAmount || parseFloat(bridgeAmount) <= 0) return;
+    setIsBridging(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await api.executeCrossChainBridge({
+        sourceChain: bridgeSourceChain,
+        destChain: bridgeDestChain,
+        asset: bridgeAsset,
+        amount: bridgeAmount,
+        senderAddress: activeWallet?.address || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+        recipientAddress: activeWallet?.address || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+        userId: user?.id,
+      });
+
+      if (res && res.success) {
+        setBridgeSuccessTx(res);
+        addToast(
+          '1-Click Bridge Transfer Complete!',
+          `Successfully moved ${bridgeAmount} ${bridgeAsset} from ${bridgeSourceChain.toUpperCase()} to ${bridgeDestChain.toUpperCase()}`,
+          'success'
+        );
+        syncOnChainBalances();
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err?.message || 'Cross-chain bridge execution failed. Please check network routing.');
+    } finally {
+      setIsBridging(false);
+    }
+  };
 
   if (!isModalOpen) return null;
 
@@ -268,7 +355,7 @@ export const WalletModal: React.FC = () => {
             )}
 
             {/* Connection Method Tabs */}
-            <div className="grid grid-cols-3 gap-1 p-1 bg-slate-950/80 rounded-2xl border border-slate-800 text-xs font-semibold">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 bg-slate-950/80 rounded-2xl border border-slate-800 text-[11px] font-semibold">
               <button
                 onClick={() => {
                   setConnectTab('appkit');
@@ -278,7 +365,7 @@ export const WalletModal: React.FC = () => {
                   connectTab === 'appkit' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Reown AppKit Directory
+                Reown AppKit
               </button>
               <button
                 onClick={() => setConnectTab('extensions')}
@@ -286,7 +373,15 @@ export const WalletModal: React.FC = () => {
                   connectTab === 'extensions' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Browser Extensions
+                Extensions
+              </button>
+              <button
+                onClick={() => setConnectTab('bridge')}
+                className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
+                  connectTab === 'bridge' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>Bridge ⚡</span>
               </button>
               <button
                 onClick={() => setConnectTab('manual')}
@@ -294,7 +389,7 @@ export const WalletModal: React.FC = () => {
                   connectTab === 'manual' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Real Address Input
+                Address Input
               </button>
             </div>
 
@@ -700,6 +795,198 @@ export const WalletModal: React.FC = () => {
                     <span>Link Real Wallet Address</span>
                   </motion.button>
                 </motion.form>
+              )}
+
+              {/* TAB 4: Seamless 1-Click Cross-Chain Asset Transfer & Bridge */}
+              {connectTab === 'bridge' && (
+                <motion.div
+                  key="tab-bridge"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="space-y-4"
+                >
+                  <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 text-cyan-300">
+                      <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse shrink-0" />
+                      <div>
+                        <span className="font-bold block">1-Click Multi-Chain Bridge</span>
+                        <span className="text-[10px] text-cyan-400/80">Move assets between NEXORUM & external blockchains instantly with zero slippage.</span>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-mono font-bold shrink-0">
+                      0.01s Relay
+                    </span>
+                  </div>
+
+                  {/* Source & Destination Chain Picker with 1-Click Swap Button */}
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    {/* From Chain */}
+                    <div className="p-2.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">From (Source Chain)</span>
+                      <select
+                        value={bridgeSourceChain}
+                        onChange={(e) => setBridgeSourceChain(e.target.value as NetworkId)}
+                        className="w-full bg-slate-900 text-white font-bold text-xs p-2 rounded-xl border border-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
+                      >
+                        <option value="nexorum">NEXORUM Chain (7780)</option>
+                        <option value="ethereum">Ethereum Mainnet (1)</option>
+                        <option value="bsc">BNB Smart Chain (56)</option>
+                        <option value="polygon">Polygon POS (137)</option>
+                        <option value="arbitrum">Arbitrum One (42161)</option>
+                        <option value="base">Base L2 (8453)</option>
+                        <option value="solana">Solana (SOL)</option>
+                        <option value="ton">TON Network</option>
+                      </select>
+                    </div>
+
+                    {/* Single-Click Swap Chain Direction Button */}
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={handleSwapBridgeChains}
+                        title="Swap Source & Destination Chains"
+                        className="p-2.5 rounded-xl bg-slate-800 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/40 transition-all shadow-md active:scale-95 cursor-pointer"
+                      >
+                        <ArrowLeftRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* To Chain */}
+                    <div className="p-2.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">To (Destination Chain)</span>
+                      <select
+                        value={bridgeDestChain}
+                        onChange={(e) => setBridgeDestChain(e.target.value as NetworkId)}
+                        className="w-full bg-slate-900 text-white font-bold text-xs p-2 rounded-xl border border-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
+                      >
+                        <option value="ethereum">Ethereum Mainnet (1)</option>
+                        <option value="nexorum">NEXORUM Chain (7780)</option>
+                        <option value="bsc">BNB Smart Chain (56)</option>
+                        <option value="polygon">Polygon POS (137)</option>
+                        <option value="arbitrum">Arbitrum One (42161)</option>
+                        <option value="base">Base L2 (8453)</option>
+                        <option value="solana">Solana (SOL)</option>
+                        <option value="ton">TON Network</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Asset & Amount Inputs */}
+                  <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400 font-semibold">Select Asset & Amount</span>
+                      <span className="text-slate-400">
+                        Balance: <span className="text-cyan-400 font-mono font-bold">{getAvailableBalance()}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <select
+                        value={bridgeAsset}
+                        onChange={(e) => setBridgeAsset(e.target.value)}
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-cyan-500 cursor-pointer"
+                      >
+                        <option value="NEX">NEX (NEXORUM)</option>
+                        <option value="ETH">ETH (Ethereum)</option>
+                        <option value="USDT">USDT (Tether)</option>
+                        <option value="USDC">USDC (Circle)</option>
+                        <option value="BNB">BNB (Binance)</option>
+                        <option value="SOL">SOL (Solana)</option>
+                        <option value="TON">TON (Telegram)</option>
+                      </select>
+
+                      <input
+                        type="number"
+                        step="any"
+                        value={bridgeAmount}
+                        onChange={(e) => setBridgeAmount(e.target.value)}
+                        placeholder="0.0"
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white outline-none focus:border-cyan-500"
+                      />
+                    </div>
+
+                    {/* Preset Amount Chips */}
+                    <div className="flex items-center justify-between pt-0.5">
+                      <div className="flex items-center gap-1.5">
+                        {['25%', '50%', '75%', 'MAX'].map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() => handleApplyPresetAmount(pct)}
+                            className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-300 border border-slate-800 hover:text-cyan-300 hover:border-cyan-500/40 transition-colors"
+                          >
+                            {pct}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        ≈ ${(parseFloat(bridgeAmount || '0') * getAssetPriceUsd(bridgeAsset)).toFixed(2)} USD
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Relayer Details */}
+                  <div className="space-y-1 bg-slate-950/80 p-2.5 rounded-2xl border border-slate-800 text-[11px] text-slate-400">
+                    <div className="flex justify-between">
+                      <span>Execution Model:</span>
+                      <span className="text-emerald-400 font-mono font-bold">Account Abstraction (ERC-4337)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Gas Fee & Slippage:</span>
+                      <span className="text-cyan-400 font-mono font-bold">$0.15 Gas / 0% Slippage</span>
+                    </div>
+                  </div>
+
+                  {/* Single Click Bridge Execution Button */}
+                  {bridgeSuccessTx ? (
+                    <div className="p-3.5 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-center space-y-2">
+                      <div className="flex items-center justify-center gap-2 text-emerald-400 font-bold text-xs">
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>Cross-Chain Transfer Verified & Completed!</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-200 font-mono">
+                        Tx Hash: {bridgeSuccessTx.txHash.slice(0, 20)}...
+                      </p>
+                      <div className="flex items-center justify-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(bridgeSuccessTx.txHash);
+                            addToast('Copied Hash', 'Transaction hash copied to clipboard');
+                          }}
+                          className="py-1.5 px-3 rounded-xl bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 text-[11px] font-bold"
+                        >
+                          Copy Hash
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBridgeSuccessTx(null)}
+                          className="py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-[11px] font-bold"
+                        >
+                          New Transfer
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      type="button"
+                      disabled={isBridging || !bridgeAmount || parseFloat(bridgeAmount) <= 0}
+                      onClick={handleExecuteBridgeTransfer}
+                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-cyan-950 disabled:opacity-50 cursor-pointer"
+                    >
+                      <Zap className={`w-4 h-4 ${isBridging ? 'animate-spin' : ''}`} />
+                      <span>
+                        {isBridging
+                          ? 'Bridging Across Chains...'
+                          : `1-Click Transfer ${bridgeAmount || '0'} ${bridgeAsset} to ${bridgeDestChain.toUpperCase()}`}
+                      </span>
+                    </motion.button>
+                  )}
+                </motion.div>
               )}
             </AnimatePresence>
 

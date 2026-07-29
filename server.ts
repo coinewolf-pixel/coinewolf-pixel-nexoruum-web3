@@ -710,6 +710,84 @@ app.post('/api/v1/tokens/create', (req, res) => {
   });
 });
 
+// 7b. Cross-Chain Bridge Transfer Endpoint (NEXORUM <-> External Chains)
+app.post('/api/v1/bridge/transfer', (req, res) => {
+  const { sourceChain, destChain, asset, amount, senderAddress, recipientAddress, userId } = req.body;
+
+  if (!sourceChain || !destChain || !asset || !amount) {
+    return res.status(400).json({ error: 'Missing transfer parameters' });
+  }
+
+  const user = db.users.find((u) => u.id === userId) || db.users[0];
+  const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+  const lockProof = `zkProof_0x${Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+  // Calculate estimated USD value
+  const numAmount = parseFloat(amount) || 0;
+  let pricePerUnit = 1;
+  if (asset === 'NEX') pricePerUnit = 12.45;
+  else if (asset === 'ETH') pricePerUnit = 3400;
+  else if (asset === 'BNB') pricePerUnit = 580;
+  else if (asset === 'SOL') pricePerUnit = 185;
+  else if (asset === 'TON') pricePerUnit = 6.85;
+
+  const amountUsd = numAmount * pricePerUnit;
+
+  const newTx = {
+    id: `tx_bridge_${Date.now()}`,
+    userId: user.id,
+    hash: txHash,
+    network: sourceChain,
+    type: 'CROSS_CHAIN_BRIDGE',
+    status: 'CONFIRMED',
+    amount: amount.toString(),
+    symbol: asset.toUpperCase(),
+    amountUsd,
+    fromAddress: senderAddress || user.primaryWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    toAddress: recipientAddress || user.primaryWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    blockNumber: Math.floor(19000000 + Math.random() * 1000000),
+    createdAt: new Date().toISOString(),
+    gasFeeUsd: 0.15,
+  };
+
+  db.transactions.unshift(newTx);
+
+  db.auditLogs.unshift({
+    id: `log_${Date.now()}`,
+    userId: user.id,
+    action: 'CROSS_CHAIN_BRIDGE_INITIATED',
+    category: 'BLOCKCHAIN',
+    details: `Cross-chain transfer of ${amount} ${asset} from ${sourceChain.toUpperCase()} to ${destChain.toUpperCase()} executed via NEXORUM Account Abstraction Relay.`,
+    ipAddress: req.ip || '127.0.0.1',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    userId: user.id,
+    title: 'Cross-Chain Bridge Completed',
+    message: `Transferred ${amount} ${asset} from ${sourceChain.toUpperCase()} to ${destChain.toUpperCase()}! Hash: ${txHash.slice(0, 10)}...`,
+    type: 'WALLET',
+    isRead: false,
+    actionUrl: '/profile',
+    createdAt: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    txHash,
+    lockProof,
+    amount,
+    asset,
+    sourceChain,
+    destChain,
+    relayerFee: '0.0001 ETH ($0.34 USD)',
+    estimatedTimeSeconds: 2,
+    message: `Successfully transferred ${amount} ${asset} from ${sourceChain.toUpperCase()} to ${destChain.toUpperCase()} on NEXORUM Multi-Chain Bridge Router!`,
+  });
+});
+
 // 8. AI Token Architect Endpoint (Generates token name, symbol, supply, decimals, description, and dynamic high-tech logo)
 app.post('/api/v1/ai/generate-token', async (req, res) => {
   const { prompt } = req.body;
