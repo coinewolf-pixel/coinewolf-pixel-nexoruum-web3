@@ -17,17 +17,20 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Camera,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWallet } from '../context/WalletContext';
 import { formatAddress, formatCurrency } from '../lib/utils';
 import { api } from '../services/api';
+import { ChangeProfilePictureModal } from './ChangeProfilePictureModal';
 
 export const ProfileView: React.FC = () => {
   const { user, updateProfile, removeWalletFromProfile, clearDemoWallets } = useAuth();
   const { openWalletModal } = useWallet();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [username, setUsername] = useState(user?.username || '');
@@ -100,16 +103,46 @@ export const ProfileView: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      {/* Change Profile Picture Modal */}
+      <ChangeProfilePictureModal
+        isOpen={isPhotoModalOpen}
+        onClose={() => setIsPhotoModalOpen(false)}
+        currentAvatarUrl={user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80'}
+        onSaveAvatar={(newUrl) => {
+          setAvatarUrl(newUrl);
+          updateProfile({ avatarUrl: newUrl });
+        }}
+      />
+
       {/* Profile Header */}
       <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
         <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-cyan-500/50 p-[2px] bg-slate-950 shrink-0">
-            <img
-              src={user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80'}
-              alt="User Avatar"
-              className="w-full h-full object-cover rounded-xl"
-            />
+          {/* Avatar with Camera Badge Button */}
+          <div className="relative group cursor-pointer" onClick={() => setIsPhotoModalOpen(true)}>
+            <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-cyan-500/50 p-[2px] bg-slate-950 shrink-0 relative transition-transform group-hover:scale-105">
+              <img
+                src={user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80'}
+                alt="User Avatar"
+                className="w-full h-full object-cover rounded-xl"
+              />
+              <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                <Camera className="w-6 h-6 text-cyan-300" />
+              </div>
+            </div>
+            <button
+              type="button"
+              id="btn_open_change_photo_badge"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPhotoModalOpen(true);
+              }}
+              title="Change Profile Picture"
+              className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-cyan-500 text-slate-950 border-2 border-slate-900 shadow-lg hover:bg-cyan-400 transition-colors"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
           </div>
+
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-black text-white">{user?.username || 'Alex Cyber'}</h1>
@@ -133,22 +166,33 @@ export const ProfileView: React.FC = () => {
           </div>
         </div>
 
-        <button
-          id="btn_edit_profile_toggle"
-          onClick={() => {
-            if (!isEditing) {
-              setAvatarUrl(user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80');
-              setUsername(user?.username || '');
-              setEmail(user?.email || '');
-              setPhone(user?.phone || '');
-            }
-            setIsEditing(!isEditing);
-          }}
-          className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-2 shrink-0"
-        >
-          <Edit2 className="w-3.5 h-3.5" />
-          <span>{isEditing ? 'Cancel Edit' : 'Edit Profile Details'}</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            id="btn_open_change_photo_modal"
+            onClick={() => setIsPhotoModalOpen(true)}
+            className="py-2 px-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-2 shrink-0"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>Change Photo</span>
+          </button>
+
+          <button
+            id="btn_edit_profile_toggle"
+            onClick={() => {
+              if (!isEditing) {
+                setAvatarUrl(user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80');
+                setUsername(user?.username || '');
+                setEmail(user?.email || '');
+                setPhone(user?.phone || '');
+              }
+              setIsEditing(!isEditing);
+            }}
+            className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-2 shrink-0"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>{isEditing ? 'Cancel Edit' : 'Edit Profile Details'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Editable Fields Box */}
@@ -179,6 +223,14 @@ export const ProfileView: React.FC = () => {
                     Upload Photo
                     <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsPhotoModalOpen(true)}
+                    className="py-1.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 shrink-0"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Camera / Studio</span>
+                  </button>
                 </div>
 
                 {/* Preset Avatars */}

@@ -1,6 +1,8 @@
 {
   "name": "NEXORUM Web3 App",
   "description": "Official Web3 Application module for NEXORUM OS connecting to NEXORUM Blockchain Engine, Wallets, Token Creator, Marketplace, AI Assistant, and Kernel.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "camera"
+  ],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
