@@ -1,1 +1,57 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Minimalist Light Mode Dynamic Overrides */
+html.light body,
+.light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.light header {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light aside {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+.light .bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light .border-slate-800 {
+  border-color: #e2e8f0 !important;
+}
+
+.light .text-white,
+.light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+.light .text-slate-300,
+.light .text-slate-400 {
+  color: #334155 !important;
+}
+
+.light .text-slate-500 {
+  color: #64748b !important;
+}

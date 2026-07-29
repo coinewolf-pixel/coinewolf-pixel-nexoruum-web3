@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { WalletProvider } from './context/WalletContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Sidebar } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
 import { WalletModal } from './components/WalletModal';
@@ -47,6 +48,7 @@ function ToastContainer() {
 function MainContent() {
   const [activeTab, setActiveTab] = useState('home');
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
+  const { theme } = useTheme();
 
   const renderView = () => {
     switch (activeTab) {
@@ -74,7 +76,13 @@ function MainContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans antialiased selection:bg-cyan-500 selection:text-slate-950">
+    <div
+      className={`min-h-screen flex font-sans antialiased transition-colors duration-300 selection:bg-cyan-500 selection:text-slate-950 ${
+        theme === 'light'
+          ? 'bg-slate-50 text-slate-900 light'
+          : 'bg-slate-950 text-slate-100 dark'
+      }`}
+    >
       {/* Sidebar */}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -104,12 +112,14 @@ function MainContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <WalletProvider>
-        <NotificationProvider>
-          <MainContent />
-        </NotificationProvider>
-      </WalletProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <WalletProvider>
+          <NotificationProvider>
+            <MainContent />
+          </NotificationProvider>
+        </WalletProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
