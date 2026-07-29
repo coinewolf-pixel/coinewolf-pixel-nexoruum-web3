@@ -148,6 +148,9 @@ export const PortfolioSummary: React.FC = () => {
   const [apiSource, setApiSource] = useState<'coingecko' | 'cached' | 'fallback'>('fallback');
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // 30-Second Polling & Countdown State
+  const [countdown, setCountdown] = useState<number>(30);
+
   // Edit / Add modal state
   const [editingToken, setEditingToken] = useState<TokenHolding | null>(null);
   const [editAmountInput, setEditAmountInput] = useState<string>('');
@@ -213,6 +216,7 @@ export const PortfolioSummary: React.FC = () => {
       setPrices(newPriceMap);
       setApiSource('coingecko');
       setLastUpdatedTime(new Date().toLocaleTimeString());
+      setCountdown(30);
     } catch (err: any) {
       console.warn('CoinGecko API Fetch Error, using live fallback matrix:', err);
       setApiError(err.message || 'Rate limited or network offline. Using secondary oracle.');
@@ -228,14 +232,30 @@ export const PortfolioSummary: React.FC = () => {
       setPrices(fallbackMap);
       setApiSource('fallback');
       setLastUpdatedTime(new Date().toLocaleTimeString());
+      setCountdown(30);
     } finally {
       setIsFetchingPrices(false);
     }
   }, [holdings]);
 
-  // Initial fetch on mount
+  // Initial fetch on mount & 30-second automatic market price polling
   useEffect(() => {
     fetchCoinGeckoPrices();
+
+    // Poll every 30 seconds for live market price updates
+    const pollInterval = setInterval(() => {
+      fetchCoinGeckoPrices();
+    }, 30000);
+
+    // 1-second interval to update visual countdown badge
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => (prev > 1 ? prev - 1 : 30));
+    }, 1000);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearInterval(countdownInterval);
+    };
   }, [fetchCoinGeckoPrices]);
 
   // Calculated metrics
@@ -337,13 +357,18 @@ export const PortfolioSummary: React.FC = () => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-800/60 text-[11px] font-mono font-bold text-cyan-300">
+            <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin" />
+            <span>Auto 30s ({countdown}s)</span>
+          </div>
+
           <button
             type="button"
             id="btn_refresh_coingecko_prices"
             onClick={fetchCoinGeckoPrices}
             disabled={isFetchingPrices}
-            className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5"
-            title="Fetch live prices from CoinGecko API"
+            className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Fetch live prices from CoinGecko API manually"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isFetchingPrices ? 'animate-spin' : ''}`} />
             <span>{isFetchingPrices ? 'Fetching...' : 'Sync Prices'}</span>
@@ -432,9 +457,18 @@ export const PortfolioSummary: React.FC = () => {
               {apiSource === 'coingecko' ? 'CoinGecko API Live' : 'NEXO Price Index'}
             </span>
           </div>
-          <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-900 flex justify-between">
-            <span>Last Sync:</span>
-            <span className="font-mono text-slate-300 font-semibold">{lastUpdatedTime || 'Just now'}</span>
+          <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-900 space-y-1">
+            <div className="flex justify-between">
+              <span>Last Sync:</span>
+              <span className="font-mono text-slate-300 font-semibold">{lastUpdatedTime || 'Just now'}</span>
+            </div>
+            <div className="flex justify-between items-center text-cyan-400 font-mono text-[10px]">
+              <span>30s Auto Poll:</span>
+              <span className="font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                Updating in {countdown}s
+              </span>
+            </div>
           </div>
         </div>
       </div>
