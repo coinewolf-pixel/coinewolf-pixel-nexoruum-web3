@@ -27,6 +27,9 @@ import {
   Globe,
   Sparkles,
   ArrowLeftRight,
+  Eye,
+  TrendingDown,
+  Lock,
 } from 'lucide-react';
 import { useWallet, SUPPORTED_WALLET_PROVIDERS } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
@@ -140,6 +143,61 @@ export const WalletModal: React.FC = () => {
       return activeWallet.nativeBalance || '10.00 ETH';
     }
     return '1,000.00 NEX';
+  };
+
+  // Smart Preview State for Cross-Chain Transfers
+  const [showSmartPreview, setShowSmartPreview] = useState<boolean>(true);
+  const [isSimulatingRoute, setIsSimulatingRoute] = useState<boolean>(false);
+  const [lastSimulationTime, setLastSimulationTime] = useState<string>('Just now');
+
+  const calcSmartPreviewMetrics = () => {
+    const numAmount = parseFloat(bridgeAmount) || 0;
+    const priceUsd = getAssetPriceUsd(bridgeAsset);
+    const totalUsd = numAmount * priceUsd;
+
+    // Standard L1 Cross-Chain Bridge Gas Fees
+    let estStandardGasUsd = 18.50;
+    if (bridgeSourceChain === 'solana' || bridgeDestChain === 'solana') estStandardGasUsd = 3.20;
+    else if (bridgeSourceChain === 'polygon' || bridgeDestChain === 'polygon') estStandardGasUsd = 4.50;
+    else if (bridgeSourceChain === 'bsc' || bridgeDestChain === 'bsc') estStandardGasUsd = 6.80;
+    else if (bridgeSourceChain === 'arbitrum' || bridgeDestChain === 'arbitrum') estStandardGasUsd = 8.40;
+
+    const nexorumGasUsd = 0.15; // ERC-4337 Account Abstraction Paymaster Gas
+    const gasSavedUsd = Math.max(0, estStandardGasUsd - nexorumGasUsd);
+    const gasSavingsPct = estStandardGasUsd > 0 ? ((gasSavedUsd / estStandardGasUsd) * 100).toFixed(1) : '99.2';
+
+    const protocolFeePct = 0.02; // 0.02% ZK Relayer Fee
+    const expectedOutput = (numAmount * (1 - protocolFeePct / 100)).toFixed(4);
+    const expectedOutputUsd = ((numAmount * (1 - protocolFeePct / 100)) * priceUsd).toFixed(2);
+    const protocolFeeUsd = (numAmount * (protocolFeePct / 100) * priceUsd).toFixed(3);
+
+    return {
+      numAmount,
+      totalUsd: totalUsd.toFixed(2),
+      estStandardGasUsd: estStandardGasUsd.toFixed(2),
+      nexorumGasUsd: nexorumGasUsd.toFixed(2),
+      gasSavedUsd: gasSavedUsd.toFixed(2),
+      gasSavingsPct,
+      expectedOutput,
+      expectedOutputUsd,
+      protocolFeeUsd,
+      slippageGuard: '0.00% (ZK Lock Guarantee)',
+      executionSpeed: '0.01s (Instant ZK Relay)',
+    };
+  };
+
+  const handleRunSimulationDryRun = () => {
+    setIsSimulatingRoute(true);
+    setTimeout(() => {
+      setIsSimulatingRoute(false);
+      setLastSimulationTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      const metrics = calcSmartPreviewMetrics();
+      addToast(
+        'Smart Preview Simulated',
+        `Route ${bridgeSourceChain.toUpperCase()} ➔ ${bridgeDestChain.toUpperCase()} verified! Gas saved: $${metrics.gasSavedUsd} (${metrics.gasSavingsPct}%)`,
+        'success'
+      );
+    }, 450);
   };
 
   const handleApplyPresetAmount = (pctStr: string) => {
@@ -927,17 +985,130 @@ export const WalletModal: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Relayer Details */}
-                  <div className="space-y-1 bg-slate-950/80 p-2.5 rounded-2xl border border-slate-800 text-[11px] text-slate-400">
-                    <div className="flex justify-between">
-                      <span>Execution Model:</span>
-                      <span className="text-emerald-400 font-mono font-bold">Account Abstraction (ERC-4337)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Gas Fee & Slippage:</span>
-                      <span className="text-cyan-400 font-mono font-bold">$0.15 Gas / 0% Slippage</span>
-                    </div>
-                  </div>
+                  {/* Smart Preview & Transaction Simulation Card */}
+                  {(() => {
+                    const metrics = calcSmartPreviewMetrics();
+                    return (
+                      <div className="rounded-2xl bg-slate-950/90 border border-slate-800 p-3.5 space-y-3 shadow-lg">
+                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <Eye className="w-4 h-4 text-cyan-400" />
+                            <span className="text-xs font-bold text-white">Smart Preview & Transaction Simulation</span>
+                            <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60 text-[9px] font-mono uppercase font-bold">
+                              AI Simulated
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleRunSimulationDryRun}
+                              disabled={isSimulatingRoute}
+                              className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-cyan-300 font-medium px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 transition-all cursor-pointer"
+                              title="Re-simulate transaction route and gas savings"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${isSimulatingRoute ? 'animate-spin text-cyan-400' : ''}`} />
+                              <span>{isSimulatingRoute ? 'Simulating...' : 'Re-Simulate'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowSmartPreview(!showSmartPreview)}
+                              className="text-[10px] text-slate-400 hover:text-white font-mono underline cursor-pointer"
+                            >
+                              {showSmartPreview ? 'Collapse' : 'Expand'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {showSmartPreview && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="space-y-3 pt-0.5"
+                          >
+                            {/* Simulated Outcome & Gas Savings Highlight */}
+                            <div className="grid grid-cols-2 gap-2">
+                              {/* Expected Outcome Box */}
+                              <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block">Simulated Receive</span>
+                                <div className="text-xs font-bold text-emerald-400 font-mono flex items-center gap-1">
+                                  <span>{metrics.expectedOutput}</span>
+                                  <span className="text-[10px] text-slate-300">{bridgeAsset}</span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  ≈ ${metrics.expectedOutputUsd} USD
+                                </div>
+                              </div>
+
+                              {/* Gas Savings Box */}
+                              <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 space-y-1">
+                                <div className="flex items-center justify-between text-[10px]">
+                                  <span className="text-emerald-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+                                    <TrendingDown className="w-3 h-3 text-emerald-400" /> Gas Saved
+                                  </span>
+                                  <span className="px-1 rounded bg-emerald-900/80 text-emerald-300 font-mono text-[9px] font-bold">
+                                    {metrics.gasSavingsPct}% Off
+                                  </span>
+                                </div>
+                                <div className="text-xs font-bold text-white font-mono">
+                                  ${metrics.gasSavedUsd} USD Saved
+                                </div>
+                                <div className="text-[9px] text-emerald-400/80 font-mono">
+                                  Paymaster: ${metrics.nexorumGasUsd} vs ${metrics.estStandardGasUsd} (L1)
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Simulated Route Visualizer Pipeline */}
+                            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                                Verified Route Simulation
+                              </span>
+
+                              <div className="flex items-center justify-between text-[11px]">
+                                <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-slate-300">
+                                  <Lock className="w-3 h-3 text-cyan-400" />
+                                  <span className="font-mono font-bold uppercase">{bridgeSourceChain}</span>
+                                </div>
+
+                                <div className="flex-1 px-2 flex flex-col items-center">
+                                  <span className="text-[9px] font-mono text-cyan-400 flex items-center gap-1">
+                                    <Sparkles className="w-2.5 h-2.5 animate-pulse" /> ZK-Proof Batch Relay
+                                  </span>
+                                  <div className="w-full h-0.5 bg-gradient-to-r from-cyan-500 via-emerald-500 to-indigo-500 rounded-full my-0.5" />
+                                  <span className="text-[9px] font-mono text-slate-500">{metrics.executionSpeed}</span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-slate-300">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                  <span className="font-mono font-bold uppercase">{bridgeDestChain}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Simulation Breakdown Details */}
+                            <div className="space-y-1 text-[10px] text-slate-400 px-0.5">
+                              <div className="flex justify-between">
+                                <span>Simulated Slippage:</span>
+                                <span className="text-emerald-400 font-mono font-bold">{metrics.slippageGuard}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Relayer Network Fee:</span>
+                                <span className="text-slate-300 font-mono">${metrics.protocolFeeUsd} (0.02%)</span>
+                              </div>
+                              <div className="flex justify-between border-t border-slate-800/60 pt-1">
+                                <span className="text-slate-500">Simulation Status:</span>
+                                <span className="text-cyan-400 font-mono font-bold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  Ready • Simulated at {lastSimulationTime}
+                                </span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Single Click Bridge Execution Button */}
                   {bridgeSuccessTx ? (
