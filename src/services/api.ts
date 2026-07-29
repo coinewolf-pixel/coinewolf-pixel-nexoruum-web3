@@ -94,7 +94,7 @@ export const api = {
     if (res && res.success) return res;
     return {
       success: true,
-      response: `🤖 NEXORUM AI Agent (Kernel v1.0): Analyzing query "${prompt}". All blockchain bridges, smart contracts, and non-custodial vaults are operational.`,
+      reply: `🤖 NEXORUM AI Agent (Kernel v1.0): Analyzing query "${prompt}". All blockchain bridges, smart contracts, and non-custodial vaults are operational.`,
     };
   },
 

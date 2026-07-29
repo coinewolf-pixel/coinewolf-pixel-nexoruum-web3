@@ -14,7 +14,7 @@ export const AiAssistantView: React.FC = () => {
     {
       id: 'msg_1',
       sender: 'ai',
-      text: 'Greetings. I am the NEXORUM OS Web3 AI Assistant powered by Gemini 2.5 AI Engine.\n\nHow can I assist your Web3 operations today? Select a prompt template or type your request below.',
+      text: 'Greetings. I am the NEXORUM OS Web3 AI Assistant powered by Gemini 3.6 Flash Engine.\n\nHow can I assist your Web3 operations today? Select a prompt template or type your request below.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -39,11 +39,12 @@ export const AiAssistantView: React.FC = () => {
 
     try {
       const res = await api.queryAiAssistant(promptText, 'Web3 Operations');
-      if (res.success && res.reply) {
+      const textReply = res?.reply || res?.response;
+      if (res?.success && textReply) {
         const aiMsg: ChatMessage = {
           id: `msg_ai_${Date.now()}`,
           sender: 'ai',
-          text: res.reply,
+          text: textReply,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages((prev) => [...prev, aiMsg]);
@@ -66,7 +67,7 @@ export const AiAssistantView: React.FC = () => {
           </div>
           <h1 className="text-3xl font-black text-white">Web3 AI Assistant</h1>
           <p className="text-slate-400 text-xs mt-1">
-            Gemini 2.5 AI Assistant for Portfolio Analysis, Price Prediction, Token Creation, and Security Audits.
+            Gemini 3.6 Flash AI Assistant for Portfolio Analysis, Price Prediction, Token Creation, and Security Audits.
           </p>
         </div>
       </div>

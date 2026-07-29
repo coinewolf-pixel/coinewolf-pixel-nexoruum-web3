@@ -721,9 +721,16 @@ app.post('/api/v1/ai/generate-token', async (req, res) => {
     const apiKey = process.env.GEMINI_API_KEY;
     let resultJson: any = null;
 
-    if (apiKey) {
+    if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
       try {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
+          },
+        });
         const response = await ai.models.generateContent({
           model: 'gemini-3.6-flash',
           contents: `You are the NEXORUM Web3 AI Token Architect. The user wants to create a real cryptocurrency token based on this concept: "${prompt}".
@@ -798,7 +805,7 @@ Return ONLY valid JSON without markdown tags.`,
   }
 });
 
-// 8. Marketplace Items & Purchase
+// 9. Marketplace Items & Purchase
 app.get('/api/v1/marketplace', (req, res) => {
   res.json({ success: true, items: db.marketplaceItems });
 });
@@ -831,14 +838,21 @@ app.post('/api/v1/marketplace/buy', (req, res) => {
   res.json({ success: true, item, message: 'Purchase confirmed on NEXORUM Blockchain Engine' });
 });
 
-// 9. AI Assistant & Token Logo Generator (Gemini API Integration)
+// 10. AI Assistant & Token Logo Generator (Gemini API Integration)
 app.post('/api/v1/ai/generate-logo', async (req, res) => {
   const { name, symbol, style, description } = req.body;
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
       try {
         const imageRes = await ai.models.generateImages({
           model: 'imagen-3.0-generate-002',
@@ -881,86 +895,26 @@ app.post('/api/v1/ai/generate-logo', async (req, res) => {
   res.json({ success: true, logoUrl });
 });
 
-app.post('/api/v1/ai/generate-token', async (req, res) => {
-  const { prompt } = req.body;
-
-  let name = 'Cyber Nexus';
-  let symbol = 'CYNEX';
-  let totalSupply = '100000000';
-  let decimals = 18;
-  let network = 'nexorum';
-  let description = 'Next-gen decentralized AI token built on NEXORUM OS kernel.';
-
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `You are a Web3 token architect. Based on the user prompt: "${prompt}", generate JSON data with fields: name, symbol (3-6 chars), totalSupply (numeric string), decimals (9 or 18), network (one of: nexorum, ethereum, bsc, polygon, solana, ton), description. Return ONLY raw JSON.`,
-      });
-
-      const rawText = response.text || '';
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.name) name = parsed.name;
-        if (parsed.symbol) symbol = parsed.symbol.toUpperCase();
-        if (parsed.totalSupply) totalSupply = String(parsed.totalSupply);
-        if (parsed.decimals) decimals = Number(parsed.decimals);
-        if (parsed.network) network = parsed.network.toLowerCase();
-        if (parsed.description) description = parsed.description;
-      }
-    } else {
-      // Prompt based procedural generation
-      const cleanPrompt = (prompt || 'token').replace(/[^a-zA-Z0-9 ]/g, '');
-      const words = cleanPrompt.trim().split(' ').filter(Boolean);
-      if (words.length > 0) {
-        name = words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Token';
-        symbol = words.map(w => w.charAt(0).toUpperCase()).join('').slice(0, 5) || 'TKN';
-        if (symbol.length < 3) symbol = (symbol + 'X').toUpperCase();
-      }
-    }
-  } catch (err: any) {
-    console.error('AI Generate Token Error:', err?.message || err);
-  }
-
-  // Generate branded SVG logo for the token
-  const colors = [
-    ['#06b6d4', '#3b82f6'],
-    ['#8b5cf6', '#ec4899'],
-    ['#f59e0b', '#ef4444'],
-    ['#10b981', '#06b6d4'],
-  ];
-  const pair = colors[Math.floor(Math.random() * colors.length)];
-  const symChar = symbol.slice(0, 3);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${pair[0]}"/><stop offset="100%" stop-color="${pair[1]}"/></linearGradient></defs><rect width="256" height="256" rx="128" fill="url(#g)"/><circle cx="128" cy="128" r="100" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="8"/><text x="128" y="142" font-family="sans-serif" font-weight="900" font-size="56" fill="#ffffff" text-anchor="middle">${symChar}</text></svg>`;
-  const logoUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-
-  res.json({
-    success: true,
-    aiData: {
-      name,
-      symbol,
-      totalSupply,
-      decimals,
-      network,
-      description,
-      logoUrl,
-    },
-  });
-});
-
 app.post('/api/v1/ai/assistant', async (req, res) => {
   const { prompt, contextType } = req.body;
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `You are NEXORUM OS Web3 AI Assistant. You are an expert in Web3, tokenomics, smart contracts, portfolio analysis, price predictions, and blockchain mechanics. Context: ${contextType || 'General Web3'}. Query: ${prompt}`,
+        model: 'gemini-3.6-flash',
+        contents: `You are NEXORUM OS Web3 AI Assistant. You are an expert in Web3, crypto tokenomics, smart contracts, multi-chain portfolio management, token creation, market analytics, and security audits. Respond concisely, clearly, and directly in markdown format.
+
+Context: ${contextType || 'General Web3'}
+User Query: ${prompt}`,
       });
 
       return res.json({
@@ -972,8 +926,37 @@ app.post('/api/v1/ai/assistant', async (req, res) => {
     console.error('Gemini API Error:', err?.message || err);
   }
 
-  // Fallback intelligent responder if key unavailable or offline
-  let fallbackReply = `NEXORUM Web3 AI Assistant Report:\n\nRegarding "${prompt}":\n\n• Portfolio Analysis: Your current multi-chain assets demonstrate a high liquidity ratio with strong upside in Base and TON network jettons.\n• Market Outlook: Gas fees across Arbitrum and Base remain ultra-low (<$0.05). Trend favors AI Agents & Jetton pools.\n• Token Strategy: Recommended initial pool liquidity of $2,000 USDT with standard 18 decimals on BEP20/ERC20 for maximum decentralized exchange router compatibility.`;
+  // Fallback intelligent responder if key is missing or call failed
+  const pLower = (prompt || '').toLowerCase();
+  let fallbackReply = '';
+
+  if (pLower.includes('portfolio') || pLower.includes('wallet') || pLower.includes('balance')) {
+    fallbackReply = `### 📊 NEXORUM AI Portfolio Audit Report
+
+• **Multi-Chain Allocation:** High liquidity ratio in native NEX, ETH, and TON Network jettons.
+• **Risk Profile:** Balanced low-risk holding structure with active staking pools providing automated yield.
+• **Optimization Tip:** Consider rebalancing 15% into Base network DEX liquidity pools for gas-optimized returns (<$0.02 per tx).`;
+  } else if (pLower.includes('predict') || pLower.includes('price') || pLower.includes('forecast') || pLower.includes('market')) {
+    fallbackReply = `### 📈 NEXORUM AI Market & Price Outlook
+
+• **ETH (Ethereum):** Bullish consolidation above key support level. Gas fee stability layer active.
+• **TON (Telegram Network):** High momentum driven by Mini App ecosystem adoption and Jetton liquidity growth.
+• **Base & Arbitrum:** Strong Layer-2 TVL growth with low-slippage cross-chain DEX router activity.`;
+  } else if (pLower.includes('token') || pLower.includes('create') || pLower.includes('bep20') || pLower.includes('jetton')) {
+    fallbackReply = `### 🪙 NEXORUM Token Architect Guide
+
+1. **Select Standard:** Choose **ERC20 / NEX20** for EVM chains or **TON Jetton** for Telegram Ecosystem.
+2. **Liquidity Setup:** Pair initial supply with 1,000 USDT or 500 TON in DEX liquidity pools.
+3. **Smart Contract Security:** Standard 18-decimal configuration with deflational burn or staking fee mechanics. You can use the NEXORUM Token Creator module directly from the sidebar.`;
+  } else {
+    fallbackReply = `### 🤖 NEXORUM AI Assistant Response
+
+Regarding: **"${prompt}"**
+
+• **System Status:** NEXORUM Web3 Kernel & non-custodial vaults fully operational.
+• **Blockchain Intelligence:** All cross-chain bridges (Ethereum, Base, Solana, TON, NEXORUM Chain) are synchronized.
+• **Actionable Advice:** Use the AI Assistant, Token Creator, and Staking Pools for optimized Web3 asset management.`;
+  }
 
   res.json({
     success: true,
