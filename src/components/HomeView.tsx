@@ -1,4 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import {
   TrendingUp,
   Wallet,
@@ -253,6 +262,45 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
   const totalPortfolioUsd = user?.wallets ? user.wallets.reduce((acc, w) => acc + w.balanceUsd, 0) : 0;
   const activeToken = tokens[activeTokenIndex] || tokens[0];
 
+  // Calculate 7-Day Asset History for Chart
+  const assetHistory7D = useMemo(() => {
+    const baseValue = totalPortfolioUsd > 0 ? totalPortfolioUsd : 1284.50;
+    const multipliers = [0.82, 0.88, 0.85, 0.92, 0.89, 0.95, 1.0];
+    const now = new Date();
+    return multipliers.map((mult, idx) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - idx));
+      const dayLabel = idx === 6 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+      const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const valueUsd = Number((baseValue * mult).toFixed(2));
+      const nexValue = Number(((baseValue * mult) / 0.05).toFixed(0));
+      return {
+        day: dayLabel,
+        date: dateLabel,
+        valueUsd,
+        nexValue,
+      };
+    });
+  }, [totalPortfolioUsd]);
+
+  const CustomChartTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-slate-900/95 border border-cyan-500/40 backdrop-blur-md p-3 rounded-xl shadow-2xl text-xs space-y-1 z-50">
+          <p className="text-slate-400 font-mono text-[10px]">{data.date} ({data.day})</p>
+          <p className="font-black text-cyan-300 font-mono text-sm">
+            {formatCurrency(data.valueUsd)}
+          </p>
+          <p className="text-slate-400 text-[10px] font-mono">
+            ~ {formatNumber(data.nexValue)} NEX Tokens
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Top Banner & Quick Stats */}
@@ -276,7 +324,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
             </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-5">
             <div>
               <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight">
                 {formatCurrency(totalPortfolioUsd)}
@@ -305,16 +353,57 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
             </div>
           </div>
 
-          {/* Mini Portfolio Sparkline Visual */}
-          <div className="h-16 flex items-end gap-1.5 mb-6 pt-2">
-            {[45, 52, 48, 65, 72, 68, 84, 91, 88, 95, 110, 125].map((val, idx) => (
-              <div key={idx} className="flex-1 bg-slate-800 rounded-t-md overflow-hidden relative group/bar">
-                <div
-                  className="w-full bg-gradient-to-t from-cyan-600 to-cyan-400 rounded-t-md transition-all duration-500"
-                  style={{ height: `${(val / 125) * 100}%` }}
-                />
+          {/* 7-Day Token Asset Value Line Chart */}
+          <div className="mb-5 bg-slate-950/70 p-4 rounded-2xl border border-slate-800/90 space-y-2">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <span className="font-extrabold text-slate-200 uppercase tracking-wider text-[11px]">
+                  7-Day Token Asset Value History
+                </span>
               </div>
-            ))}
+              <span className="text-[10px] text-cyan-400 font-mono bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/50">
+                7D Asset Performance
+              </span>
+            </div>
+
+            <div className="h-36 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={assetHistory7D} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="tokenAssetGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    stroke="#64748b"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={{ stroke: '#334155' }}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(val) => `$${val}`}
+                  />
+                  <Tooltip content={<CustomChartTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="valueUsd"
+                    stroke="#06b6d4"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#tokenAssetGradient)"
+                    activeDot={{ r: 5, stroke: '#22d3ee', strokeWidth: 2, fill: '#0891b2' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-slate-800/80 pt-4">
