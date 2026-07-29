@@ -176,7 +176,7 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
           className="w-9 h-9 rounded-xl overflow-hidden border border-slate-700/80 hover:border-cyan-400 transition-colors p-[1px] bg-slate-800"
         >
           <img
-            src={user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
+            src={user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80'}
             alt="Profile Avatar"
             className="w-full h-full object-cover rounded-[10px]"
           />

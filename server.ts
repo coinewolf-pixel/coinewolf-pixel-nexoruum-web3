@@ -95,7 +95,7 @@ const db = {
       email: 'alex.cyber@nexorum.os',
       phone: '+1 (555) 019-2834',
       username: 'Alex Cyber',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+      avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80',
       role: 'CREATOR',
       primaryWallet: defaultUserVault.address,
       wallets: [

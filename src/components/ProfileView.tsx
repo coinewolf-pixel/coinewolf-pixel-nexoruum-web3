@@ -31,7 +31,17 @@ export const ProfileView: React.FC = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [username, setUsername] = useState(user?.username || '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80');
   const [copiedReferral, setCopiedReferral] = useState(false);
+
+  // Avatar Presets
+  const AVATAR_PRESETS = [
+    { name: 'Cyber Orb', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80' },
+    { name: 'Crypto Gold', url: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=250&q=80' },
+    { name: 'AI Mesh', url: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=250&q=80' },
+    { name: 'Quantum Core', url: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=250&q=80' },
+    { name: 'Hologram', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80' },
+  ];
 
   // Non-Custodial Vault Export State
   const [showVaultDetails, setShowVaultDetails] = useState(false);
@@ -64,8 +74,21 @@ export const ProfileView: React.FC = () => {
     setTimeout(() => setCopiedVaultKey(false), 2000);
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setAvatarUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveProfile = async () => {
-    await updateProfile({ email, phone, username });
+    await updateProfile({ email, phone, username, avatarUrl });
     setIsEditing(false);
   };
 
@@ -82,7 +105,7 @@ export const ProfileView: React.FC = () => {
         <div className="flex items-center gap-5">
           <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-cyan-500/50 p-[2px] bg-slate-950 shrink-0">
             <img
-              src={user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'}
+              src={user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80'}
               alt="User Avatar"
               className="w-full h-full object-cover rounded-xl"
             />
@@ -112,7 +135,15 @@ export const ProfileView: React.FC = () => {
 
         <button
           id="btn_edit_profile_toggle"
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={() => {
+            if (!isEditing) {
+              setAvatarUrl(user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80');
+              setUsername(user?.username || '');
+              setEmail(user?.email || '');
+              setPhone(user?.phone || '');
+            }
+            setIsEditing(!isEditing);
+          }}
           className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-2 shrink-0"
         >
           <Edit2 className="w-3.5 h-3.5" />
@@ -122,16 +153,65 @@ export const ProfileView: React.FC = () => {
 
       {/* Editable Fields Box */}
       {isEditing && (
-        <div className="p-6 rounded-3xl bg-slate-900 border border-cyan-500/40 shadow-2xl space-y-4">
-          <h3 className="text-sm font-bold text-white">Update Profile Attributes</h3>
+        <div className="p-6 rounded-3xl bg-slate-900 border border-cyan-500/40 shadow-2xl space-y-5">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <User className="w-4 h-4 text-cyan-400" />
+            <span>Update Profile Details & Avatar Photo</span>
+          </h3>
+
+          {/* Avatar Photo Picker */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+            <label className="text-xs font-bold text-slate-300 block">Avatar Photo Settings</label>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-cyan-500/50 shrink-0 bg-slate-900">
+                <img src={avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1 space-y-2 w-full">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="Paste image URL (https://...)"
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:border-cyan-500"
+                  />
+                  <label className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer shrink-0">
+                    Upload Photo
+                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                  </label>
+                </div>
+
+                {/* Preset Avatars */}
+                <div className="flex items-center gap-2 overflow-x-auto pt-1">
+                  <span className="text-[10px] text-slate-500 font-medium shrink-0">Presets:</span>
+                  {AVATAR_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setAvatarUrl(preset.url)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border transition-all shrink-0 ${
+                        avatarUrl === preset.url
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
             <div className="space-y-1">
-              <label className="text-slate-400 font-medium">Username</label>
+              <label className="text-slate-400 font-medium">Username / Display Name</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                placeholder="Your name"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-cyan-500"
               />
             </div>
             <div className="space-y-1">
@@ -140,7 +220,8 @@ export const ProfileView: React.FC = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                placeholder="name@example.com"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-cyan-500"
               />
             </div>
             <div className="space-y-1">
@@ -149,16 +230,17 @@ export const ProfileView: React.FC = () => {
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                placeholder="+1 ..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-cyan-500"
               />
             </div>
           </div>
           <button
             id="btn_save_profile_attributes"
             onClick={handleSaveProfile}
-            className="py-2 px-4 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20"
+            className="py-2 px-5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all"
           >
-            Save Changes
+            Save Profile Changes
           </button>
         </div>
       )}
