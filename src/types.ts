@@ -50,6 +50,7 @@ export interface UserProfile {
   phone?: string;
   username: string;
   avatarUrl: string;
+  bio?: string;
   role: 'USER' | 'CREATOR' | 'ADMIN' | 'KERNEL_SUPERVISOR';
   primaryWallet?: string;
   wallets: ConnectedWallet[];

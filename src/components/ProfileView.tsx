@@ -35,6 +35,7 @@ export const ProfileView: React.FC = () => {
   const [phone, setPhone] = useState(user?.phone || '');
   const [username, setUsername] = useState(user?.username || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80');
+  const [bio, setBio] = useState(user?.bio || '');
   const [copiedReferral, setCopiedReferral] = useState(false);
 
   // Avatar Presets
@@ -91,7 +92,7 @@ export const ProfileView: React.FC = () => {
   };
 
   const handleSaveProfile = async () => {
-    await updateProfile({ email, phone, username, avatarUrl });
+    await updateProfile({ email, phone, username, avatarUrl, bio });
     setIsEditing(false);
   };
 
@@ -163,6 +164,11 @@ export const ProfileView: React.FC = () => {
                 <span>@{user.telegramUsername}</span>
               </div>
             )}
+            {user?.bio && (
+              <p className="text-xs text-slate-300 mt-2 max-w-xl leading-relaxed italic border-l-2 border-cyan-500/60 pl-2.5 bg-slate-950/50 py-1 rounded-r-xl">
+                "{user.bio}"
+              </p>
+            )}
           </div>
         </div>
 
@@ -184,6 +190,7 @@ export const ProfileView: React.FC = () => {
                 setUsername(user?.username || '');
                 setEmail(user?.email || '');
                 setPhone(user?.phone || '');
+                setBio(user?.bio || '');
               }
               setIsEditing(!isEditing);
             }}
@@ -200,7 +207,7 @@ export const ProfileView: React.FC = () => {
         <div className="p-6 rounded-3xl bg-slate-900 border border-cyan-500/40 shadow-2xl space-y-5">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <User className="w-4 h-4 text-cyan-400" />
-            <span>Update Profile Details & Avatar Photo</span>
+            <span>Update Profile Details, Personal Bio & Avatar Photo</span>
           </h3>
 
           {/* Avatar Photo Picker */}
@@ -286,6 +293,27 @@ export const ProfileView: React.FC = () => {
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-cyan-500"
               />
             </div>
+          </div>
+
+          {/* Personal Bio Textarea */}
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center justify-between">
+              <label className="text-slate-300 font-bold flex items-center gap-1.5">
+                <span>Personal Bio / Status</span>
+              </label>
+              <span className={`text-[10px] font-mono ${bio.length > 250 ? 'text-amber-400' : 'text-slate-500'}`}>
+                {bio.length} / 280 chars
+              </span>
+            </div>
+            <textarea
+              id="input_user_bio"
+              rows={3}
+              maxLength={280}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Write a brief personal bio, Web3 summary, or status update..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-sans text-xs focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none leading-relaxed"
+            />
           </div>
           <button
             id="btn_save_profile_attributes"

@@ -52,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       phone: '+1 (555) 019-2834',
       username: 'Alex Cyber',
       avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80',
+      bio: 'Web3 Architect & On-Chain Quantitative Trader. Building decentralized autonomous modules on NEXORUM OS.',
       role: 'USER',
       primaryWallet: savedWallets[0]?.address || '',
       wallets: savedWallets,
@@ -143,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateProfile = async (data: { email?: string; phone?: string; username?: string; avatarUrl?: string }) => {
+  const updateProfile = async (data: { email?: string; phone?: string; username?: string; avatarUrl?: string; bio?: string }) => {
     if (!user) return;
     setIsLoading(true);
     try {
@@ -153,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: data.email !== undefined ? data.email : user.email,
         phone: data.phone !== undefined ? data.phone : user.phone,
         avatarUrl: data.avatarUrl !== undefined ? data.avatarUrl : user.avatarUrl,
+        bio: data.bio !== undefined ? data.bio : user.bio,
       };
 
       setUser(updatedUser);
