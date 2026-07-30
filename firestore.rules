@@ -28,6 +28,11 @@ service cloud.firestore {
       match /transactions/{txId} {
         allow read, write: if isOwner(userId) && isValidId(txId);
       }
+
+      // User device sessions subcollection
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner(userId) && isValidId(sessionId);
+      }
     }
   }
 }

@@ -27,6 +27,24 @@
         "status": { "type": "string" }
       },
       "required": ["txId", "userId", "type", "timestamp"]
+    },
+    "DeviceSession": {
+      "title": "DeviceSession",
+      "description": "User login session and trusted device record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "deviceName": { "type": "string" },
+        "deviceCategory": { "type": "string" },
+        "os": { "type": "string" },
+        "browser": { "type": "string" },
+        "isTrusted": { "type": "boolean" },
+        "lastActive": { "type": "string" },
+        "location": { "type": "string" },
+        "ipAddress": { "type": "string font" }
+      },
+      "required": ["id", "userId", "deviceName", "lastActive"]
     }
   },
   "firestore": {
@@ -37,6 +55,10 @@
     "/users/{userId}/transactions/{txId}": {
       "schema": "Transaction",
       "description": "User's recorded transaction history"
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "DeviceSession",
+      "description": "Trusted device and active session history"
     }
   }
 }

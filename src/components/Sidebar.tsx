@@ -98,33 +98,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Auto-Detected Device Environment Status */}
-      <div className="mx-3 my-2 p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 space-y-1 text-xs">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {deviceInfo.isMobile ? (
-              <Smartphone className="w-4 h-4 text-cyan-400 animate-pulse" />
-            ) : (
-              <Monitor className="w-4 h-4 text-emerald-400" />
-            )}
-            <span className="text-white font-bold text-[11px]">
-              {deviceInfo.isMobile ? 'Mobile Web Detected' : 'PC Desktop Active'}
-            </span>
-          </div>
-          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
-            {deviceInfo.os}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1 border-t border-slate-800/60">
-          <span>Viewport: {deviceInfo.width}×{deviceInfo.height}</span>
-          <span className="text-emerald-400 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Auto-Optimized
-          </span>
-        </div>
-      </div>
-
       {/* Web3 Network Sync Badge */}
-      <div className="mx-3 mb-2 p-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 flex items-center justify-between text-xs">
+      <div className="mx-3 my-2 p-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2 min-w-0">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

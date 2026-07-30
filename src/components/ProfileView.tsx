@@ -26,6 +26,8 @@ import { api } from '../services/api';
 import { ChangeProfilePictureModal } from './ChangeProfilePictureModal';
 import { PortfolioSummary } from './PortfolioSummary';
 import { StakingDashboard } from './StakingDashboard';
+import { TrustedDevicesModal } from './TrustedDevicesModal';
+import { Smartphone, ShieldCheck } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
   const { user, updateProfile, removeWalletFromProfile, clearDemoWallets } = useAuth();
@@ -33,6 +35,7 @@ export const ProfileView: React.FC = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [isDevicesModalOpen, setIsDevicesModalOpen] = useState(false);
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [username, setUsername] = useState(user?.username || '');
@@ -559,7 +562,50 @@ export const ProfileView: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Security & Trusted Devices Hub Card */}
+        <div className="p-6 rounded-3xl bg-slate-900 border border-cyan-500/30 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-base">Доверенные устройства & История входов</h3>
+                <p className="text-xs text-slate-400">
+                  Управление доверенными устройствами, текущими сессиями и журналами входа
+                </p>
+              </div>
+            </div>
+
+            <button
+              id="btn_manage_trusted_devices"
+              onClick={() => setIsDevicesModalOpen(true)}
+              className="py-2 px-4 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer min-h-[44px]"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Устройства & Сессии</span>
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Change Photo Modal */}
+      <ChangeProfilePictureModal
+        isOpen={isPhotoModalOpen}
+        onClose={() => setIsPhotoModalOpen(false)}
+        currentPhotoUrl={avatarUrl}
+        onSelectPhoto={(url) => {
+          setAvatarUrl(url);
+          setIsPhotoModalOpen(false);
+        }}
+      />
+
+      {/* Trusted Devices & Session History Modal */}
+      <TrustedDevicesModal
+        isOpen={isDevicesModalOpen}
+        onClose={() => setIsDevicesModalOpen(false)}
+      />
     </div>
   );
 };
