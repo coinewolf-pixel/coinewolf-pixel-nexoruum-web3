@@ -303,8 +303,8 @@ export const api = {
       totalClaimed: 0,
       canClaimNow: true,
       timeUntilNextClaimMs: 0,
-      currentRewardNex: 8,
-      schedule: [8, 9, 10, 10, 11, 11, 11],
+      currentRewardNex: 25,
+      schedule: [25, 30, 35, 40, 45, 50, 60],
     };
   },
 

@@ -363,13 +363,25 @@ export const WalletModal: React.FC = () => {
         >
           <motion.div
             key="wallet-modal-dialog"
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.35}
+            dragSnapToOrigin
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 70 || info.velocity.y > 250) {
+                closeWalletModal();
+              }
+            }}
             initial={{ opacity: 0, scale: 0.94, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 16 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative space-y-5"
+            className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative space-y-5 cursor-grab active:cursor-grabbing"
           >
+            {/* Visual Drag Handle for mobile gesture UX */}
+            <div className="w-12 h-1.5 bg-slate-700/80 hover:bg-slate-500 rounded-full mx-auto -mt-2 mb-2 transition-colors touch-none select-none" />
+
             {/* Close Button */}
             <button
               id="btn_close_wallet_modal"

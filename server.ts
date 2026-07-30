@@ -1723,8 +1723,9 @@ app.post('/api/v1/airdrops/claim', (req, res) => {
   });
 });
 
-// Daily Check-In & Streak Airdrop Engine (Max 300 NEX over 30 days)
-const DAILY_REWARDS_SCHEDULE = [8, 9, 10, 10, 11, 11, 11]; // Sums to ~70 NEX per week (max 300 NEX over 30 days)
+// 25-Minute Check-In & Streak Airdrop Engine (+25 NEX per claim to wallet)
+const DAILY_REWARDS_SCHEDULE = [25, 30, 35, 40, 45, 50, 60];
+const CLAIM_INTERVAL_MS = 25 * 60 * 1000; // 25 Minutes cooldown
 
 app.get('/api/v1/airdrops/daily-status', (req, res) => {
   const userId = (req.query.userId as string) || 'usr_nex_982341';
@@ -1738,16 +1739,10 @@ app.get('/api/v1/airdrops/daily-status', (req, res) => {
 
   const claimInfo = db.dailyClaims[userId];
   const now = Date.now();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   const elapsed = now - claimInfo.lastClaimTimestamp;
 
-  // Streak reset check: if user missed more than 48 hours, reset streak to 1
-  if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
-    claimInfo.streak = 1;
-  }
-
-  const canClaimNow = claimInfo.lastClaimTimestamp === 0 || elapsed >= ONE_DAY_MS;
-  const timeUntilNextClaimMs = canClaimNow ? 0 : ONE_DAY_MS - elapsed;
+  const canClaimNow = claimInfo.lastClaimTimestamp === 0 || elapsed >= CLAIM_INTERVAL_MS;
+  const timeUntilNextClaimMs = canClaimNow ? 0 : CLAIM_INTERVAL_MS - elapsed;
   const currentRewardNex = DAILY_REWARDS_SCHEDULE[(claimInfo.streak - 1) % 7];
 
   res.json({
@@ -1777,25 +1772,20 @@ app.post('/api/v1/airdrops/daily-claim', (req, res) => {
 
   const claimInfo = db.dailyClaims[targetUserId];
   const now = Date.now();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   const elapsed = now - claimInfo.lastClaimTimestamp;
 
-  if (claimInfo.lastClaimTimestamp > 0 && elapsed < ONE_DAY_MS) {
-    const hoursLeft = Math.ceil((ONE_DAY_MS - elapsed) / (60 * 60 * 1000));
+  if (claimInfo.lastClaimTimestamp > 0 && elapsed < CLAIM_INTERVAL_MS) {
+    const minutesLeft = Math.ceil((CLAIM_INTERVAL_MS - elapsed) / (60 * 1000));
     return res.status(400).json({
-      error: `Daily reward already claimed today! Next reward opens in ${hoursLeft} hours.`,
-      nextClaimAvailableInMs: ONE_DAY_MS - elapsed,
+      error: `Airdrop reward already claimed! Next reward opens in ${minutesLeft} minutes.`,
+      nextClaimAvailableInMs: CLAIM_INTERVAL_MS - elapsed,
     });
-  }
-
-  // Reset streak if missed 2 days
-  if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
-    claimInfo.streak = 1;
   }
 
   const rewardAmountNex = DAILY_REWARDS_SCHEDULE[(claimInfo.streak - 1) % 7];
   claimInfo.totalClaimed += rewardAmountNex;
   claimInfo.lastClaimTimestamp = now;
+  claimInfo.streak = (claimInfo.streak % 7) + 1;
 
   // Credit NEX tokens directly into user's wallet balance for staking!
   if (user) {

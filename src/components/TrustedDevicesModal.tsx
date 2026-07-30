@@ -18,6 +18,7 @@ import {
 import { useDeviceDetect, DeviceInfo } from '../hooks/useDeviceDetect';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { SwipeableContainer } from './SwipeableContainer';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, collection, setDoc, getDocs, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 
@@ -249,9 +250,13 @@ export const TrustedDevicesModal: React.FC<TrustedDevicesModalProps> = ({ isOpen
   const trustedDevices = devices.filter((d) => d.isTrusted);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
+    <SwipeableContainer
+      onClose={onClose}
+      direction="down"
+      backdropClassName="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xl"
+      className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+    >
+      {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
@@ -515,7 +520,6 @@ export const TrustedDevicesModal: React.FC<TrustedDevicesModalProps> = ({ isOpen
             Закрыть
           </button>
         </div>
-      </div>
-    </div>
+    </SwipeableContainer>
   );
 };

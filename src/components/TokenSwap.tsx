@@ -591,13 +591,31 @@ export const TokenSwap: React.FC = () => {
       {/* TOKEN SELECTOR MODAL */}
       <AnimatePresence>
         {selectingTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+            onClick={() => setSelectingTarget(null)}
+          >
             <motion.div
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.35}
+              dragSnapToOrigin
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 70 || info.velocity.y > 250) {
+                  setSelectingTarget(null);
+                }
+              }}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4 cursor-grab active:cursor-grabbing relative"
             >
+              {/* Drag handle for mobile */}
+              <div className="w-full flex justify-center pt-0 pb-1 touch-none select-none">
+                <div className="w-12 h-1.5 bg-slate-700/80 hover:bg-slate-500 rounded-full transition-colors" />
+              </div>
+
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <h3 className="text-base font-bold text-white">Select a Token</h3>
                 <button

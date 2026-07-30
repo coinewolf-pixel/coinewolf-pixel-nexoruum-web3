@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
+import { SwipeableContainer } from './SwipeableContainer';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -541,7 +542,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
               </span>
             </div>
             <p className="text-xs text-slate-300">
-              Return every 24 hours to claim your daily token bonus! Maintain your streak to unlock the Day 7 Mega Bonus.
+              Return every 25 minutes to claim your token bonus! Maintain your streak to unlock the Day 7 Mega Bonus (+60 NEX).
             </p>
           </div>
 
@@ -563,7 +564,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
 
         {/* 7-Day Streak Calendar Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-          {(dailyStatus?.schedule || [15, 25, 40, 60, 80, 110, 170]).map((rewardNex, index) => {
+          {(dailyStatus?.schedule || [25, 30, 35, 40, 45, 50, 60]).map((rewardNex, index) => {
             const dayNum = index + 1;
             const isCurrent = (dailyStatus?.streak || 1) === dayNum;
             const isCompleted = (dailyStatus?.streak || 1) > dayNum;
@@ -610,7 +611,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
         <div className="pt-3 border-t border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-xs text-purple-200/80 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
-            <span>30-Day Airdrop (Max 300 NEX). Claimed tokens are added directly to your wallet for Staking!</span>
+            <span>25-Minute Airdrop (+25 NEX per claim). Claimed tokens are added directly to your wallet balance!</span>
           </div>
 
           <div>
@@ -625,7 +626,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
                 <span>
                   {claimingDaily
                     ? 'Claiming...'
-                    : `Claim Day ${dailyStatus?.streak || 1} (+${dailyStatus?.currentRewardNex || 10} NEX)`}
+                    : `Claim Day ${dailyStatus?.streak || 1} (+${dailyStatus?.currentRewardNex || 25} NEX)`}
                 </span>
               </button>
             ) : (
@@ -1252,74 +1253,77 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
 
       {/* DEDICATED AIRDROP RECEIVED CONFIRMATION MODAL */}
       {claimSuccessModal && claimSuccessModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-md p-6 rounded-3xl bg-slate-900 border-2 border-amber-500/50 shadow-2xl space-y-5 text-center overflow-hidden">
-            <div className="absolute -top-12 -left-12 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+        <SwipeableContainer
+          onClose={() => setClaimSuccessModal(null)}
+          direction="down"
+          backdropClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+          className="relative w-full max-w-md p-6 rounded-3xl bg-slate-900 border-2 border-amber-500/50 shadow-2xl space-y-5 text-center overflow-hidden"
+        >
+          <div className="absolute -top-12 -left-12 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative z-10 space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500 to-purple-600 p-0.5 shadow-xl shadow-amber-500/20 flex items-center justify-center animate-bounce">
-                <div className="w-full h-full bg-slate-950 rounded-[22px] flex items-center justify-center">
-                  <Gift className="w-8 h-8 text-amber-300" />
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  Daily Airdrop Received!
-                </span>
-                <h3 className="text-2xl font-black text-white mt-2">
-                  +{claimSuccessModal.rewardNex} NEX
-                </h3>
-                <p className="text-xs font-mono text-emerald-400 font-bold mt-0.5">
-                  ≈ ${(claimSuccessModal.rewardNex * 12.45).toFixed(2)} USD
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs text-left">
-                <div className="flex justify-between items-center text-slate-400">
-                  <span>День стрейка:</span>
-                  <span className="font-bold text-cyan-300 font-mono">Day {claimSuccessModal.streak} / 7</span>
-                </div>
-                <div className="flex justify-between items-center text-slate-400">
-                  <span>Всего получено по airdrop:</span>
-                  <span className="font-bold text-amber-300 font-mono">{claimSuccessModal.totalClaimed} NEX</span>
-                </div>
-                <div className="flex justify-between items-center text-slate-400">
-                  <span>Сохранено в кошелек:</span>
-                  <span className="font-bold text-emerald-400 flex items-center gap-1 font-mono">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Сохранено и зачислено
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <button
-                  id="btn_modal_stake_claimed_nex"
-                  onClick={() => {
-                    setStakeAmountInput(claimSuccessModal.rewardNex.toString());
-                    setClaimSuccessModal(null);
-                    const el = document.getElementById('input_stake_amount_nex');
-                    el?.scrollIntoView({ behavior: 'smooth' });
-                    el?.focus();
-                  }}
-                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-purple-950 flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <Flame className="w-4 h-4 text-amber-300" />
-                  <span>Застейкать {claimSuccessModal.rewardNex} NEX (+100% APY)</span>
-                </button>
-
-                <button
-                  id="btn_modal_close_airdrop_claimed"
-                  onClick={() => setClaimSuccessModal(null)}
-                  className="w-full py-2.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer"
-                >
-                  Отлично, закрыть
-                </button>
+          <div className="relative z-10 space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500 to-purple-600 p-0.5 shadow-xl shadow-amber-500/20 flex items-center justify-center animate-bounce">
+              <div className="w-full h-full bg-slate-950 rounded-[22px] flex items-center justify-center">
+                <Gift className="w-8 h-8 text-amber-300" />
               </div>
             </div>
+
+            <div>
+              <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                Daily Airdrop Received!
+              </span>
+              <h3 className="text-2xl font-black text-white mt-2">
+                +{claimSuccessModal.rewardNex} NEX
+              </h3>
+              <p className="text-xs font-mono text-emerald-400 font-bold mt-0.5">
+                ≈ ${(claimSuccessModal.rewardNex * 12.45).toFixed(2)} USD
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs text-left">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>День стрейка:</span>
+                <span className="font-bold text-cyan-300 font-mono">Day {claimSuccessModal.streak} / 7</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Всего получено по airdrop:</span>
+                <span className="font-bold text-amber-300 font-mono">{claimSuccessModal.totalClaimed} NEX</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Сохранено в кошелек:</span>
+                <span className="font-bold text-emerald-400 flex items-center gap-1 font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Сохранено и зачислено
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                id="btn_modal_stake_claimed_nex"
+                onClick={() => {
+                  setStakeAmountInput(claimSuccessModal.rewardNex.toString());
+                  setClaimSuccessModal(null);
+                  const el = document.getElementById('input_stake_amount_nex');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                  el?.focus();
+                }}
+                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-purple-950 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Flame className="w-4 h-4 text-amber-300" />
+                <span>Застейкать {claimSuccessModal.rewardNex} NEX (+100% APY)</span>
+              </button>
+
+              <button
+                id="btn_modal_close_airdrop_claimed"
+                onClick={() => setClaimSuccessModal(null)}
+                className="w-full py-2.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Отлично, закрыть
+              </button>
+            </div>
           </div>
-        </div>
+        </SwipeableContainer>
       )}
     </div>
   );

@@ -23,6 +23,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { NEXORUM_PLUGIN_MANIFEST } from '../lib/nexorumKernel';
+import { SwipeableContainer } from './SwipeableContainer';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useDeviceDetect } from '../hooks/useDeviceDetect';
@@ -262,17 +263,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Mobile Slide-Over Navigation Drawer */}
       {isMobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          {/* Backdrop overlay */}
-          <div
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
-            onClick={onCloseMobileDrawer}
-          />
-          {/* Slide-in drawer container */}
-          <div className="relative w-4/5 max-w-xs h-full bg-slate-950 border-r border-slate-800 shadow-2xl animate-in slide-in-from-left duration-250 z-10">
+        <SwipeableContainer
+          onClose={onCloseMobileDrawer}
+          direction="left"
+          backdropClassName="fixed inset-0 z-50 md:hidden flex justify-start bg-slate-950/80 backdrop-blur-md"
+          className="w-4/5 max-w-xs h-full bg-slate-950 border-r border-slate-800 shadow-2xl flex flex-col"
+          showHandle={true}
+          handleClassName="py-1 border-b border-slate-800/40"
+        >
+          <div className="flex-1 overflow-y-auto">
             {sidebarContent}
           </div>
-        </div>
+        </SwipeableContainer>
       )}
     </>
   );
