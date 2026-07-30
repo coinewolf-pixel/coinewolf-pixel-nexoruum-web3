@@ -314,13 +314,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
     });
-    if (res && res.success) return res;
+    if (res) return res;
     return {
-      success: true,
-      message: 'Claimed 25 NEX for Daily Check-In!',
-      rewardNex: 25,
-      claimedStreak: 1,
-      nextStreak: 2,
+      success: false,
+      error: 'Unable to process daily claim at this time.',
     };
   },
 

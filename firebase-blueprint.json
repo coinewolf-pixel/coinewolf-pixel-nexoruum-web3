@@ -45,6 +45,19 @@
         "ipAddress": { "type": "string font" }
       },
       "required": ["id", "userId", "deviceName", "lastActive"]
+    },
+    "DailyClaim": {
+      "title": "DailyClaim",
+      "description": "Daily check-in and streak tracking record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "lastClaimTimestamp": { "type": "number" },
+        "streak": { "type": "number" },
+        "totalClaimed": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "lastClaimTimestamp", "streak", "totalClaimed"]
     }
   },
   "firestore": {
@@ -59,6 +72,10 @@
     "/users/{userId}/sessions/{sessionId}": {
       "schema": "DeviceSession",
       "description": "Trusted device and active session history"
+    },
+    "/users/{userId}/claims/{claimId}": {
+      "schema": "DailyClaim",
+      "description": "User's daily check-in streak and timestamp"
     }
   }
 }
