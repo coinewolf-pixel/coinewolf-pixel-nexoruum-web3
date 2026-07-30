@@ -298,14 +298,13 @@ export const api = {
     if (res && res.success) return res;
     return {
       success: true,
-      dailyAirdrop: {
-        userId,
-        streak: 1,
-        lastClaimTimestamp: null,
-        canClaimToday: true,
-        totalClaimed: 0,
-        rewardMatrix: [10, 25, 50, 100, 200, 500, 1000],
-      },
+      streak: 1,
+      lastClaimTimestamp: 0,
+      totalClaimed: 0,
+      canClaimNow: true,
+      timeUntilNextClaimMs: 0,
+      currentRewardNex: 8,
+      schedule: [8, 9, 10, 10, 11, 11, 11],
     };
   },
 

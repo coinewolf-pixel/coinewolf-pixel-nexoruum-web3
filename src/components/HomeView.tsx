@@ -96,19 +96,28 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
       const resPools = await api.getStakingPools();
       if (resPools.success && resPools.pools) setStakingPools(resPools.pools);
 
-      if (user) {
-        const resDaily = await api.getDailyAirdropStatus(user.id);
-        if (resDaily.success) {
-          setDailyStatus({
-            streak: resDaily.streak,
-            totalClaimed: resDaily.totalClaimed,
-            canClaimNow: resDaily.canClaimNow,
-            timeUntilNextClaimMs: resDaily.timeUntilNextClaimMs,
-            currentRewardNex: resDaily.currentRewardNex,
-            schedule: resDaily.schedule || [8, 9, 10, 10, 11, 11, 11],
-          });
-        }
+      const userIdToUse = user?.id || 'usr_nex_982341';
+      const resDaily = await api.getDailyAirdropStatus(userIdToUse);
+      if (resDaily && resDaily.success) {
+        const streak = typeof resDaily.streak === 'number' ? resDaily.streak : 1;
+        const totalClaimed = typeof resDaily.totalClaimed === 'number' ? resDaily.totalClaimed : 0;
+        const canClaimNow = Boolean(resDaily.canClaimNow);
+        const rawTimeMs = Number(resDaily.timeUntilNextClaimMs);
+        const timeUntilNextClaimMs = !isNaN(rawTimeMs) && rawTimeMs > 0 ? rawTimeMs : 0;
+        const currentRewardNex = typeof resDaily.currentRewardNex === 'number' ? resDaily.currentRewardNex : 8;
+        const schedule = Array.isArray(resDaily.schedule) ? resDaily.schedule : [8, 9, 10, 10, 11, 11, 11];
 
+        setDailyStatus({
+          streak,
+          totalClaimed,
+          canClaimNow,
+          timeUntilNextClaimMs,
+          currentRewardNex,
+          schedule,
+        });
+      }
+
+      if (user) {
         const resStakes = await api.getUserStakes(user.id);
         if (resStakes.success && resStakes.stakes) setUserStakes(resStakes.stakes);
       }
@@ -125,24 +134,37 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
 
   // Countdown timer effect for daily claim cooldown
   useEffect(() => {
-    if (!dailyStatus || dailyStatus.canClaimNow || dailyStatus.timeUntilNextClaimMs <= 0) {
+    if (!dailyStatus || dailyStatus.canClaimNow) {
       setCountdownText('');
       return;
     }
 
-    let msLeft = dailyStatus.timeUntilNextClaimMs;
-    const timer = setInterval(() => {
-      msLeft -= 1000;
+    const timeMs = Number(dailyStatus.timeUntilNextClaimMs);
+    if (isNaN(timeMs) || timeMs <= 0) {
+      setCountdownText('');
+      return;
+    }
+
+    let msLeft = timeMs;
+    const updateFormattedTimer = () => {
       if (msLeft <= 0) {
-        clearInterval(timer);
         setCountdownText('');
         loadData();
-      } else {
-        const h = Math.floor(msLeft / (1000 * 60 * 60));
-        const m = Math.floor((msLeft % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((msLeft % (1000 * 60)) / 1000);
-        setCountdownText(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        return;
       }
+      const totalSec = Math.floor(msLeft / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      setCountdownText(
+        `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      );
+    };
+
+    updateFormattedTimer();
+    const timer = setInterval(() => {
+      msLeft -= 1000;
+      updateFormattedTimer();
     }, 1000);
 
     return () => clearInterval(timer);
