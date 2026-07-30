@@ -21,6 +21,7 @@ import {
 import { useWallet } from '../context/WalletContext';
 import { useNotifications } from '../context/NotificationContext';
 import { formatCurrency, formatNumber } from '../lib/utils';
+import { GasPriceD3Chart } from './GasPriceD3Chart';
 
 export interface SwapTokenOption {
   symbol: string;
@@ -505,6 +506,13 @@ export const TokenSwap: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Real-Time D3 Gas Price Trend Line Chart (Last 60 Minutes) */}
+        <GasPriceD3Chart
+          currentGwei={gasBaseGwei}
+          selectedTier={selectedGasTier}
+          isUpdating={isUpdatingGas}
+        />
       </div>
 
       {/* ROUTE & IMPACT SUMMARY */}
