@@ -65,6 +65,13 @@ export const api = {
     ownerAddress?: string;
     userId: string;
     addInitialLiquidityUsd?: number;
+    socials?: {
+      telegram?: string;
+      twitter?: string;
+      facebook?: string;
+      youtube?: string;
+      website?: string;
+    };
   }) {
     const res = await safeFetchJson('/api/v1/tokens/create', {
       method: 'POST',
@@ -106,6 +113,7 @@ export const api = {
       isVerified: true,
       liquidityPoolAddress,
       sparkline: [0.01, 0.02, 0.03, 0.04, 0.045, 0.048, 0.05],
+      socials: payload.socials,
     };
 
     return {
