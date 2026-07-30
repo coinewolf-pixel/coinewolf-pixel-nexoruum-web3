@@ -51,7 +51,7 @@ interface HomeViewProps {
 
 export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
   const { activeWallet, openWalletModal, syncOnChainBalances, isSyncingBalances } = useWallet();
-  const { user } = useAuth();
+  const { user, creditWalletBalance } = useAuth();
   const { addToast } = useNotifications();
   const [tokens, setTokens] = useState<TokenItem[]>([]);
   const [airdrops, setAirdrops] = useState<AirdropCampaign[]>([]);
@@ -67,6 +67,13 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
   } | null>(null);
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [countdownText, setCountdownText] = useState('');
+  const [claimSuccessModal, setClaimSuccessModal] = useState<{
+    isOpen: boolean;
+    rewardNex: number;
+    streak: number;
+    totalClaimed: number;
+    message: string;
+  } | null>(null);
 
   // Staking State
   const [stakingPools, setStakingPools] = useState<any[]>([]);
@@ -190,7 +197,23 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
     try {
       const res = await api.claimDailyAirdrop(user.id);
       if (res.success) {
-        addToast('Daily Reward Claimed! 🎉', res.message, 'success');
+        const rewardNex = res.rewardNex || dailyStatus?.currentRewardNex || 8;
+        const streak = res.claimedStreak || dailyStatus?.streak || 1;
+        const totalClaimed = res.totalClaimed || ((dailyStatus?.totalClaimed || 0) + rewardNex);
+
+        // Save & credit tokens to user's persistent wallet balance
+        creditWalletBalance('NEX', rewardNex);
+
+        // Open Modal showing claimed amount & persistence confirmation
+        setClaimSuccessModal({
+          isOpen: true,
+          rewardNex,
+          streak,
+          totalClaimed,
+          message: res.message || `+${rewardNex} NEX успешно сохранены в ваш кошелек!`,
+        });
+
+        addToast('Награда получена! 🎉', `+${rewardNex} NEX зачислены и сохранены на ваш кошелек.`, 'success');
         loadData();
       } else {
         addToast('Claim Error', res.error || 'Daily claim unavailable', 'error');
@@ -1226,6 +1249,78 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
           </div>
         </div>
       </div>
+
+      {/* DEDICATED AIRDROP RECEIVED CONFIRMATION MODAL */}
+      {claimSuccessModal && claimSuccessModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-md p-6 rounded-3xl bg-slate-900 border-2 border-amber-500/50 shadow-2xl space-y-5 text-center overflow-hidden">
+            <div className="absolute -top-12 -left-12 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500 to-purple-600 p-0.5 shadow-xl shadow-amber-500/20 flex items-center justify-center animate-bounce">
+                <div className="w-full h-full bg-slate-950 rounded-[22px] flex items-center justify-center">
+                  <Gift className="w-8 h-8 text-amber-300" />
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  Daily Airdrop Received!
+                </span>
+                <h3 className="text-2xl font-black text-white mt-2">
+                  +{claimSuccessModal.rewardNex} NEX
+                </h3>
+                <p className="text-xs font-mono text-emerald-400 font-bold mt-0.5">
+                  ≈ ${(claimSuccessModal.rewardNex * 12.45).toFixed(2)} USD
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs text-left">
+                <div className="flex justify-between items-center text-slate-400">
+                  <span>День стрейка:</span>
+                  <span className="font-bold text-cyan-300 font-mono">Day {claimSuccessModal.streak} / 7</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-400">
+                  <span>Всего получено по airdrop:</span>
+                  <span className="font-bold text-amber-300 font-mono">{claimSuccessModal.totalClaimed} NEX</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-400">
+                  <span>Сохранено в кошелек:</span>
+                  <span className="font-bold text-emerald-400 flex items-center gap-1 font-mono">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Сохранено и зачислено
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <button
+                  id="btn_modal_stake_claimed_nex"
+                  onClick={() => {
+                    setStakeAmountInput(claimSuccessModal.rewardNex.toString());
+                    setClaimSuccessModal(null);
+                    const el = document.getElementById('input_stake_amount_nex');
+                    el?.scrollIntoView({ behavior: 'smooth' });
+                    el?.focus();
+                  }}
+                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-purple-950 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Flame className="w-4 h-4 text-amber-300" />
+                  <span>Застейкать {claimSuccessModal.rewardNex} NEX (+100% APY)</span>
+                </button>
+
+                <button
+                  id="btn_modal_close_airdrop_claimed"
+                  onClick={() => setClaimSuccessModal(null)}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Отлично, закрыть
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

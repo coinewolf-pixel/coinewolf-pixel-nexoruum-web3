@@ -16,6 +16,7 @@ interface AuthContextType {
   addWalletToProfile: (wallet: ConnectedWallet) => void;
   removeWalletFromProfile: (walletId: string) => void;
   clearDemoWallets: () => void;
+  creditWalletBalance: (symbol: string, amount: number) => void;
   primaryWallet: ConnectedWallet | undefined;
 }
 
@@ -219,6 +220,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const creditWalletBalance = (symbol: string, amount: number) => {
+    if (!user) return;
+    setUser((prev) => {
+      if (!prev) return null;
+      let wallets = [...prev.wallets];
+      if (wallets.length === 0) {
+        wallets = [{
+          id: `w_nex_${Date.now()}`,
+          address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+          network: 'nexorum',
+          provider: 'metamask',
+          providerName: 'NEXORUM Web3 Wallet',
+          isPrimary: true,
+          balanceUsd: amount * 12.45,
+          nativeBalance: `${amount.toFixed(2)} ${symbol}`,
+          connectedAt: new Date().toISOString(),
+        }];
+      } else {
+        wallets = wallets.map((w) => {
+          if (w.nativeBalance.includes(symbol) || w.network === 'nexorum') {
+            const cur = parseFloat(w.nativeBalance) || 0;
+            const newBal = (cur + amount).toFixed(2);
+            return {
+              ...w,
+              nativeBalance: `${newBal} ${symbol}`,
+              balanceUsd: w.balanceUsd + amount * 12.45,
+            };
+          }
+          return w;
+        });
+      }
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nexorum_user_wallets', JSON.stringify(wallets));
+      }
+      const updated = { ...prev, primaryWallet: prev.primaryWallet || wallets[0].address, wallets };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nexorum_user_profile', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
   const logout = () => {
     setUser(null);
   };
@@ -240,6 +284,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addWalletToProfile,
         removeWalletFromProfile,
         clearDemoWallets,
+        creditWalletBalance,
         primaryWallet,
       }}
     >
