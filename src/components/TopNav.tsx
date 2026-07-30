@@ -17,6 +17,7 @@ import {
   Lock,
   Sun,
   Moon,
+  Laptop,
   Check,
   Cpu,
   Server,
@@ -40,7 +41,7 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
   const { activeWallet, activeNetwork, networks, switchNetwork, openWalletModal } = useWallet();
   const { user, isAdminUnlocked } = useAuth();
   const { unreadCount, openDrawer, addToast } = useNotifications();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark, isSystemAuto, mode, themeName } = useTheme();
 
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -299,13 +300,20 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
           id="btn_theme_toggle"
           onClick={toggleTheme}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer ${
-            isDark
+            isSystemAuto
+              ? 'bg-cyan-950/80 hover:bg-cyan-900/80 border-cyan-500/40 text-cyan-200'
+              : isDark
               ? 'bg-slate-900/90 hover:bg-slate-800/90 border-slate-800 text-slate-200 hover:border-cyan-500/40'
               : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-sm'
           }`}
-          title={`Switch to ${isDark ? 'Minimalist Light' : 'Cybernetic Dark'} Mode`}
+          title={`Current: ${themeName}. Click to cycle: System Auto ➔ Dark ➔ Light`}
         >
-          {isDark ? (
+          {isSystemAuto ? (
+            <>
+              <Laptop className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span className="hidden sm:inline font-mono text-[11px] text-cyan-300">Auto (OS)</span>
+            </>
+          ) : isDark ? (
             <>
               <Moon className="w-3.5 h-3.5 text-cyan-400" />
               <span className="hidden sm:inline font-mono text-[11px] text-cyan-300">Cybernetic Dark</span>
