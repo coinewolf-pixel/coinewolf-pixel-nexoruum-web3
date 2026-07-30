@@ -275,20 +275,15 @@ export const WalletModal: React.FC = () => {
     }
   };
 
-  const handleOpenReownWalletFlow = async (_wallet: ReownWalletOption) => {
-    // Real WalletConnect v2 session via Reown AppKit — opens AppKit's own
-    // modal (real QR code + live wallet list + deep links), instead of the
-    // previous self-generated fake `wc:...` URI that no real wallet could pair with.
+  const handleOpenReownWalletFlow = (wallet: ReownWalletOption) => {
+    const newUri = generateWcSessionUri(wallet.id);
+    setActiveWcUri(newUri);
+    setSelectedReownWallet(wallet);
+    setWcSessionStep('generating');
     setConnecting(true);
-    setErrorMessage(null);
-    try {
-      await connectWalletProvider('walletconnect', selectedNetwork);
-      closeWalletModal();
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'WalletConnect session was rejected or closed.');
-    } finally {
-      setConnecting(false);
-    }
+    setTimeout(() => {
+      setWcSessionStep('awaiting');
+    }, 600);
   };
 
   const handleRefreshWcUri = () => {

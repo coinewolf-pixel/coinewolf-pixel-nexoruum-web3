@@ -34,6 +34,8 @@ import {
 } from 'recharts';
 import { formatCurrency, formatNumber } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import { PortfolioAlertsWidget } from './PortfolioAlertsWidget';
 
 export interface TokenHolding {
   id: string; // CoinGecko API ID e.g. "ethereum", "bitcoin", "solana", "binancecoin", "nexorum", "the-open-network", "tether", "usd-coin"
@@ -139,6 +141,7 @@ const AVAILABLE_TOKENS_LIST = [
 
 export const PortfolioSummary: React.FC = () => {
   const { user } = useAuth();
+  const { checkPortfolioVolatility } = useNotifications();
 
   // Holdings state
   const [holdings, setHoldings] = useState<TokenHolding[]>(() => {
@@ -290,6 +293,13 @@ export const PortfolioSummary: React.FC = () => {
   const totalPortfolioValueUsd = calculatedHoldings.reduce((sum, item) => sum + item.totalValueUsd, 0);
   const total24hValueChangeUsd = calculatedHoldings.reduce((sum, item) => sum + item.valueChange24hUsd, 0);
   const total24hPercentChange = totalPortfolioValueUsd > 0 ? (total24hValueChangeUsd / totalPortfolioValueUsd) * 100 : 0;
+
+  // Auto-check portfolio volatility when holdings update
+  useEffect(() => {
+    if (calculatedHoldings.length > 0) {
+      checkPortfolioVolatility(calculatedHoldings);
+    }
+  }, [calculatedHoldings, checkPortfolioVolatility]);
 
   // Add percentage share to each calculated item
   const holdingsWithShare = calculatedHoldings
@@ -484,6 +494,9 @@ export const PortfolioSummary: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Real-time Portfolio Volatility Alert System */}
+      <PortfolioAlertsWidget />
 
       {/* Interactive Recharts Portfolio Allocation Analytics */}
       <motion.div

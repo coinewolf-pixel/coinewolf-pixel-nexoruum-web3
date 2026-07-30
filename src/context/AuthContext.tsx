@@ -11,7 +11,7 @@ interface AuthContextType {
   lockAdminMode: () => void;
   toggleUserRole: (role: UserProfile['role']) => void;
   loginWithTelegram: (telegramData: { telegramId: string; telegramUsername?: string; firstName?: string; photoUrl?: string }) => Promise<void>;
-  updateProfile: (data: { email?: string; phone?: string; username?: string; avatarUrl?: string; bio?: string }) => Promise<void>;
+  updateProfile: (data: { email?: string; phone?: string; username?: string; avatarUrl?: string }) => Promise<void>;
   logout: () => void;
   addWalletToProfile: (wallet: ConnectedWallet) => void;
   removeWalletFromProfile: (walletId: string) => void;

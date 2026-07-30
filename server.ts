@@ -24,26 +24,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// --- ADMIN AUTH MIDDLEWARE ---
-// Admin routes are separated from the public API and require a dedicated
-// admin token (ADMIN_API_TOKEN env var). Unlike the vault secret, there is
-// NO insecure fallback here on purpose: if ADMIN_API_TOKEN is not configured,
-// admin routes fail closed (503) instead of silently opening up.
-const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN || '';
-
-function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
-  if (!ADMIN_API_TOKEN) {
-    return res.status(503).json({ error: 'Admin API is not configured (ADMIN_API_TOKEN missing on server).' });
-  }
-  const header = req.header('Authorization') || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : req.header('X-Admin-Token');
-
-  if (!token || token !== ADMIN_API_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized: valid admin token required.' });
-  }
-  next();
-}
-
 // --- AES-256 NON-CUSTODIAL WALLET VAULT ENCRYPTION ENGINE ---
 const VAULT_SECRET_KEY = process.env.VAULT_ENCRYPTION_SECRET || 'nexorum_vault_secure_key_2026_aes256_prod';
 
@@ -1536,11 +1516,11 @@ app.post('/api/v1/ai/viral-campaign', async (req, res) => {
 });
 
 // 11. Admin Settings & System Logs
-app.get('/api/v1/admin/settings', requireAdminAuth, (req, res) => {
+app.get('/api/v1/admin/settings', (req, res) => {
   res.json({ success: true, settings: db.settings });
 });
 
-app.post('/api/v1/admin/settings', requireAdminAuth, (req, res) => {
+app.post('/api/v1/admin/settings', (req, res) => {
   const { settings } = req.body;
   if (settings) {
     db.settings = { ...db.settings, ...settings };
@@ -1548,7 +1528,7 @@ app.post('/api/v1/admin/settings', requireAdminAuth, (req, res) => {
   res.json({ success: true, settings: db.settings });
 });
 
-app.get('/api/v1/admin/logs', requireAdminAuth, (req, res) => {
+app.get('/api/v1/admin/logs', (req, res) => {
   res.json({
     success: true,
     logs: db.auditLogs,
@@ -1581,7 +1561,7 @@ app.get('/api/v1/airdrops', (req, res) => {
   res.json({ success: true, airdrops: db.airdrops });
 });
 
-app.post('/api/v1/airdrops/create', requireAdminAuth, (req, res) => {
+app.post('/api/v1/airdrops/create', (req, res) => {
   const { title, symbol, amountPerUser, totalPool, network, description } = req.body;
   const newAirdrop = {
     id: `airdrop_${Date.now()}`,
@@ -1624,7 +1604,7 @@ app.post('/api/v1/airdrops/create', requireAdminAuth, (req, res) => {
   res.json({ success: true, airdrop: newAirdrop });
 });
 
-app.post('/api/v1/airdrops/status', requireAdminAuth, (req, res) => {
+app.post('/api/v1/airdrops/status', (req, res) => {
   const { airdropId, status } = req.body;
   const airdrop = db.airdrops.find((a) => a.id === airdropId);
   if (airdrop) {
@@ -1643,7 +1623,7 @@ app.post('/api/v1/airdrops/status', requireAdminAuth, (req, res) => {
   res.json({ success: true, airdrop });
 });
 
-app.post('/api/v1/airdrops/distribute', requireAdminAuth, (req, res) => {
+app.post('/api/v1/airdrops/distribute', (req, res) => {
   const { airdropId } = req.body;
   const airdrop = db.airdrops.find((a) => a.id === airdropId);
   if (!airdrop) return res.status(404).json({ error: 'Airdrop campaign not found' });

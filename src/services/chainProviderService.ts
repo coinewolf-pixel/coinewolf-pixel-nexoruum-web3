@@ -1,6 +1,5 @@
 import { ethers } from 'ethers';
 import { ConnectedWallet, NetworkId } from '../types';
-import { appKitModal } from '../lib/appkit';
 
 // Standard public RPCs for multi-chain connectivity
 export const CHAIN_RPC_MAP: Record<string, string> = {
@@ -218,83 +217,6 @@ export async function connectBrowserWalletWithEthers(providerId: string): Promis
     console.error('[ethers.js] Browser wallet connection error:', err);
     throw new Error(err?.message || `Wallet authorization for ${providerId} was rejected or failed.`);
   }
-}
-
-/**
- * Connects a real WalletConnect v2 session via Reown AppKit and returns the
- * connected address + live on-chain balance. Replaces the previous fake
- * `wc:...` URI generator that was never a real WalletConnect session.
- *
- * Opens the AppKit modal (QR code / deep links to real wallet apps) and
- * resolves once the user approves the connection in their wallet.
- */
-export async function connectWithReownAppKit(): Promise<{
-  address: string;
-  networkId: NetworkId;
-  nativeBalance: string;
-  balanceUsd: number;
-} | null> {
-  if (typeof window === 'undefined') return null;
-
-  return new Promise((resolve, reject) => {
-    let settled = false;
-
-    const unsubscribeAccount = appKitModal.subscribeAccount(async (account: any) => {
-      if (settled || !account?.isConnected || !account?.address) return;
-
-      try {
-        const walletProvider = appKitModal.getWalletProvider();
-        if (!walletProvider) return;
-
-        const browserProvider = new ethers.BrowserProvider(walletProvider as any);
-        const network = await browserProvider.getNetwork();
-        const chainIdNumber = Number(network.chainId);
-
-        let networkId: NetworkId = 'ethereum';
-        if (chainIdNumber === 7780) networkId = 'nexorum';
-        else if (chainIdNumber === 56 || chainIdNumber === 97) networkId = 'bsc';
-        else if (chainIdNumber === 137 || chainIdNumber === 80001) networkId = 'polygon';
-        else if (chainIdNumber === 42161) networkId = 'arbitrum';
-        else if (chainIdNumber === 8453) networkId = 'base';
-
-        const onChainResult = await fetchOnChainBalances(account.address, networkId);
-
-        settled = true;
-        unsubscribeAccount?.();
-        appKitModal.close();
-
-        resolve({
-          address: account.address,
-          networkId,
-          nativeBalance: onChainResult.nativeBalanceFormatted,
-          balanceUsd: onChainResult.totalBalanceUsd,
-        });
-      } catch (err) {
-        settled = true;
-        unsubscribeAccount?.();
-        reject(err instanceof Error ? err : new Error('Failed to finalize WalletConnect session.'));
-      }
-    });
-
-    // If the user closes the modal without connecting, reject after a grace period.
-    const unsubscribeState = appKitModal.subscribeState((state: any) => {
-      if (settled) return;
-      if (state?.open === false) {
-        setTimeout(() => {
-          if (settled) return;
-          const account = appKitModal.getAccount?.();
-          if (!account?.isConnected) {
-            settled = true;
-            unsubscribeAccount?.();
-            unsubscribeState?.();
-            reject(new Error('WalletConnect session was closed before a wallet connected.'));
-          }
-        }, 300);
-      }
-    });
-
-    appKitModal.open();
-  });
 }
 
 /**
