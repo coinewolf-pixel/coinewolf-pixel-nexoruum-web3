@@ -1723,9 +1723,9 @@ app.post('/api/v1/airdrops/claim', (req, res) => {
   });
 });
 
-// 25-Minute Check-In & Streak Airdrop Engine (+25 NEX per claim to wallet)
+// Daily 24-Hour Check-In & Streak Airdrop Engine (+25 NEX Day 1, 24h cooldown)
 const DAILY_REWARDS_SCHEDULE = [25, 30, 35, 40, 45, 50, 60];
-const CLAIM_INTERVAL_MS = 25 * 60 * 1000; // 25 Minutes cooldown
+const CLAIM_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 Hours cooldown
 
 app.get('/api/v1/airdrops/daily-status', (req, res) => {
   const userId = (req.query.userId as string) || 'usr_nex_982341';
@@ -1740,6 +1740,11 @@ app.get('/api/v1/airdrops/daily-status', (req, res) => {
   const claimInfo = db.dailyClaims[userId];
   const now = Date.now();
   const elapsed = now - claimInfo.lastClaimTimestamp;
+
+  // Reset streak if missed more than 48 hours
+  if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
+    claimInfo.streak = 1;
+  }
 
   const canClaimNow = claimInfo.lastClaimTimestamp === 0 || elapsed >= CLAIM_INTERVAL_MS;
   const timeUntilNextClaimMs = canClaimNow ? 0 : CLAIM_INTERVAL_MS - elapsed;
@@ -1775,11 +1780,16 @@ app.post('/api/v1/airdrops/daily-claim', (req, res) => {
   const elapsed = now - claimInfo.lastClaimTimestamp;
 
   if (claimInfo.lastClaimTimestamp > 0 && elapsed < CLAIM_INTERVAL_MS) {
-    const minutesLeft = Math.ceil((CLAIM_INTERVAL_MS - elapsed) / (60 * 1000));
+    const hoursLeft = Math.ceil((CLAIM_INTERVAL_MS - elapsed) / (60 * 60 * 1000));
     return res.status(400).json({
-      error: `Airdrop reward already claimed! Next reward opens in ${minutesLeft} minutes.`,
+      error: `Daily reward already claimed today! Next reward opens in ${hoursLeft} hours.`,
       nextClaimAvailableInMs: CLAIM_INTERVAL_MS - elapsed,
     });
+  }
+
+  // Reset streak if missed 2 days
+  if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
+    claimInfo.streak = 1;
   }
 
   const rewardAmountNex = DAILY_REWARDS_SCHEDULE[(claimInfo.streak - 1) % 7];

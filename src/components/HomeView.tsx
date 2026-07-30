@@ -542,7 +542,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
               </span>
             </div>
             <p className="text-xs text-slate-300">
-              Return every 25 minutes to claim your token bonus! Maintain your streak to unlock the Day 7 Mega Bonus (+60 NEX).
+              Return once every 24 hours to claim your daily token bonus! Maintain your streak to unlock the Day 7 Mega Bonus (+60 NEX).
             </p>
           </div>
 
@@ -611,7 +611,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
         <div className="pt-3 border-t border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-xs text-purple-200/80 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
-            <span>25-Minute Airdrop (+25 NEX per claim). Claimed tokens are added directly to your wallet balance!</span>
+            <span>Daily 24-Hour Check-In (+25 NEX Day 1). Claimed tokens credit directly to your wallet balance!</span>
           </div>
 
           <div>
