@@ -6,6 +6,7 @@ import { nexorumBus } from '../lib/nexorumKernel';
 import {
   fetchOnChainBalances,
   connectBrowserWalletWithEthers,
+  connectWithReownAppKit,
   signMessageWithEthers,
 } from '../services/chainProviderService';
 
@@ -159,8 +160,25 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // 2. If user entered a custom wallet address
     else if (customAddress && customAddress.trim().length > 5) {
       address = customAddress.trim();
+    }
+    // 3. Real WalletConnect v2 session via Reown AppKit (QR / deep link to real wallet apps)
+    else if (providerId === 'walletconnect') {
+      try {
+        const appKitRes = await connectWithReownAppKit();
+        if (appKitRes) {
+          address = appKitRes.address;
+          targetNetwork = appKitRes.networkId || targetNetwork;
+          nativeBalance = appKitRes.nativeBalance;
+          balanceUsd = appKitRes.balanceUsd;
+        }
+      } catch (err: any) {
+        throw new Error(err?.message || 'WalletConnect session was rejected or timed out.');
+      }
+      if (!address) {
+        throw new Error('WalletConnect session did not return a connected address.');
+      }
     } else {
-      // 3. Try real Browser Wallet Extension using ethers.js and native injection
+      // 4. Try real Browser Wallet Extension using ethers.js and native injection
       try {
         const browserWalletRes = await connectBrowserWalletWithEthers(providerId);
         if (browserWalletRes) {
@@ -179,7 +197,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // 3. Query real on-chain EVM balances (ETH, BNB, USDT, etc.) via ethers.js JsonRpcProviders
+    // 5. Query real on-chain EVM balances (ETH, BNB, USDT, etc.) via ethers.js JsonRpcProviders
     if (address && address.startsWith('0x') && address.length === 42) {
       try {
         const onChainRes = await fetchOnChainBalances(address, targetNetwork);
