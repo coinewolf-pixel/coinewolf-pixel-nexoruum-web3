@@ -55,10 +55,23 @@ export const GasPriceD3Chart: React.FC<GasPriceD3ChartProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
+  const [containerWidth, setContainerWidth] = useState<number>(0);
   const [history, setHistory] = useState<GasHistoryDataPoint[]>(() =>
     generateInitialGasHistory(currentGwei)
   );
   const [hoveredPoint, setHoveredPoint] = useState<GasHistoryDataPoint | null>(null);
+
+  // ResizeObserver for fluid mobile container updates
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0] && entries[0].contentRect) {
+        setContainerWidth(entries[0].contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Append real-time updates when currentGwei changes
   useEffect(() => {
@@ -303,21 +316,21 @@ export const GasPriceD3Chart: React.FC<GasPriceD3ChartProps> = ({
           setHoveredPoint(d);
         }
       });
-  }, [history, selectedTier, minGwei, maxGwei]);
+  }, [history, selectedTier, minGwei, maxGwei, containerWidth]);
 
   return (
-    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+    <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5">
       {/* Chart Top Stats & Controls */}
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
-          <Activity className="w-3.5 h-3.5 text-cyan-400" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Activity className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
           <span className="font-bold text-slate-200">60-Min Gas Price Trend (D3.js)</span>
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
-            Real-Time Feed
+            Real-Time
           </span>
         </div>
 
-        <div className="flex items-center gap-3 font-mono text-[11px]">
+        <div className="flex items-center gap-2.5 sm:gap-3 font-mono text-[10px] sm:text-[11px] flex-wrap">
           <span className="text-slate-400">
             Avg: <span className="text-slate-200 font-bold">{avgGwei} Gwei</span>
           </span>

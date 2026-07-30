@@ -232,18 +232,18 @@ export const TokenSwap: React.FC = () => {
   };
 
   return (
-    <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl relative overflow-hidden space-y-5">
+    <div className="p-4 sm:p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl relative overflow-hidden space-y-4 sm:space-y-5">
       {/* Background Decorator */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800 relative z-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 relative z-10 gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+          <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
             <ArrowDownUp className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-white">NEXORUM Instant Swap</h2>
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-cyan-400" />
@@ -257,7 +257,7 @@ export const TokenSwap: React.FC = () => {
         </div>
 
         {/* Settings Toggle & Refresh */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={() => setShowSettings(!showSettings)}
@@ -468,7 +468,7 @@ export const TokenSwap: React.FC = () => {
         </div>
 
         {/* Gas Speed Selector Cards (Low, Medium, High) */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {(['low', 'medium', 'high'] as GasSpeedTier[]).map((tierKey) => {
             const est = gasEstimates[tierKey];
             const isSelected = selectedGasTier === tierKey;
