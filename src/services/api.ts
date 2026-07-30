@@ -332,17 +332,18 @@ export const api = {
     });
     if (res && res.success && res.token) return res;
 
-    const firstWord = prompt.trim().split(' ')[0] || 'Aura';
+    const safePrompt = (prompt || '').toLowerCase();
+    const firstWord = (prompt || 'Aura').trim().split(' ')[0] || 'Aura';
     const cleanWord = firstWord.replace(/[^a-zA-Z0-9]/g, '');
-    const name = cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1) + ' Protocol';
+    const name = (cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1) || 'Aura') + ' Protocol';
     const symbol = name.slice(0, 4).toUpperCase();
     return {
       success: true,
       token: {
         name,
         symbol,
-        network: prompt.toLowerCase().includes('solana') ? 'solana' : prompt.toLowerCase().includes('polygon') ? 'polygon' : 'ethereum',
-        standard: prompt.toLowerCase().includes('solana') ? 'SPL-20' : 'ERC-20',
+        network: safePrompt.includes('solana') ? 'solana' : safePrompt.includes('polygon') ? 'polygon' : 'ethereum',
+        standard: safePrompt.includes('solana') ? 'SPL-20' : 'ERC-20',
         decimals: 18,
         totalSupply: '1000000000',
         description: `AI Smart Token generated from prompt: "${prompt}"`,

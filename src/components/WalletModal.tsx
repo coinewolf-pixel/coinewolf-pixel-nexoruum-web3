@@ -343,8 +343,9 @@ export const WalletModal: React.FC = () => {
   };
 
   const filteredReownWallets = REOWN_APPKIT_DIRECTORY.filter((w) => {
+    const q = (appKitSearch || '').toLowerCase();
     const matchesCategory = appKitFilter === 'all' || w.category === appKitFilter;
-    const matchesSearch = w.name.toLowerCase().includes(appKitSearch.toLowerCase());
+    const matchesSearch = (w.name || '').toLowerCase().includes(q);
     return matchesCategory && matchesSearch;
   });
 

@@ -34,10 +34,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ setActiveTab }) => {
   }, []);
 
   const filteredTokens = tokens.filter((t) => {
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.contractAddress.toLowerCase().includes(searchQuery.toLowerCase());
+      (t.name || '').toLowerCase().includes(q) ||
+      (t.symbol || '').toLowerCase().includes(q) ||
+      (t.contractAddress || '').toLowerCase().includes(q);
 
     const matchesNetwork = selectedNetwork === 'all' || t.network === selectedNetwork;
 
