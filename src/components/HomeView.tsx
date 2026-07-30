@@ -43,6 +43,7 @@ import { api } from '../services/api';
 import { TokenItem, TransactionRecord, AirdropCampaign } from '../types';
 import { formatCurrency, formatNumber, formatAddress, timeAgo } from '../lib/utils';
 import { NetworkMetricsDashboard } from './NetworkMetricsDashboard';
+import { TokenSwap } from './TokenSwap';
 
 interface HomeViewProps {
   setActiveTab: (tab: string) => void;
@@ -476,6 +477,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
           </div>
         </div>
       </div>
+
+      {/* INSTANT ON-CHAIN TOKEN SWAP ENGINE */}
+      <TokenSwap />
 
       {/* NEXORUM CHAIN NETWORK METRICS & GAS FEE TRENDS DASHBOARD (RECHARTS) */}
       <NetworkMetricsDashboard />
