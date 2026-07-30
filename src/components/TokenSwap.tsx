@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowDownUp,
@@ -14,6 +14,9 @@ import {
   AlertCircle,
   Loader2,
   ArrowRight,
+  Flame,
+  Gauge,
+  Clock,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -27,6 +30,17 @@ export interface SwapTokenOption {
   badge: string;
   decimals: number;
   balance: number;
+}
+
+export type GasSpeedTier = 'low' | 'medium' | 'high';
+
+export interface GasFeeEstimate {
+  tier: GasSpeedTier;
+  label: string;
+  gwei: number;
+  costUsd: number;
+  estimatedSeconds: number;
+  nativeFeeText: string;
 }
 
 const SUPPORTED_SWAP_TOKENS: SwapTokenOption[] = [
@@ -54,12 +68,77 @@ export const TokenSwap: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [customSlippageInput, setCustomSlippageInput] = useState('');
 
+  // Gas Fee Estimator States
+  const [selectedGasTier, setSelectedGasTier] = useState<GasSpeedTier>('medium');
+  const [gasBaseGwei, setGasBaseGwei] = useState<number>(16);
+  const [isUpdatingGas, setIsUpdatingGas] = useState<boolean>(false);
+
   // Dropdown states
   const [selectingTarget, setSelectingTarget] = useState<'from' | 'to' | null>(null);
 
   // Execution states
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapStepText, setSwapStepText] = useState<string | null>(null);
+
+  // Real-time gas price fluctuation ticker
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsUpdatingGas(true);
+      setGasBaseGwei((prev) => {
+        const delta = (Math.random() - 0.5) * 2;
+        return Math.max(10, Math.min(45, parseFloat((prev + delta).toFixed(1))));
+      });
+      setTimeout(() => setIsUpdatingGas(false), 600);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Compute low, medium, high gas estimates dynamically
+  const gasEstimates = useMemo<Record<GasSpeedTier, GasFeeEstimate>>(() => {
+    // Network multiplier based on badge/symbol
+    const isEth = fromToken.symbol === 'ETH' || fromToken.symbol === 'WBTC';
+    const isSol = fromToken.symbol === 'SOL';
+    const isTon = fromToken.symbol === 'TON';
+
+    const baseMultiplier = isSol ? 0.05 : isTon ? 0.08 : isEth ? 1.0 : 0.35;
+
+    const lowGwei = Math.round(gasBaseGwei * 0.75);
+    const medGwei = Math.round(gasBaseGwei * 1.0);
+    const highGwei = Math.round(gasBaseGwei * 1.45);
+
+    const lowCost = Math.max(0.01, parseFloat((0.02 * baseMultiplier * (lowGwei / 15)).toFixed(3)));
+    const medCost = Math.max(0.03, parseFloat((0.04 * baseMultiplier * (medGwei / 15)).toFixed(3)));
+    const highCost = Math.max(0.07, parseFloat((0.09 * baseMultiplier * (highGwei / 15)).toFixed(3)));
+
+    return {
+      low: {
+        tier: 'low',
+        label: 'Low (Eco)',
+        gwei: lowGwei,
+        costUsd: lowCost,
+        estimatedSeconds: isSol ? 1 : isTon ? 2 : 25,
+        nativeFeeText: `${lowGwei} Gwei`,
+      },
+      medium: {
+        tier: 'medium',
+        label: 'Medium (Standard)',
+        gwei: medGwei,
+        costUsd: medCost,
+        estimatedSeconds: isSol ? 0.5 : isTon ? 1 : 12,
+        nativeFeeText: `${medGwei} Gwei`,
+      },
+      high: {
+        tier: 'high',
+        label: 'High (Priority)',
+        gwei: highGwei,
+        costUsd: highCost,
+        estimatedSeconds: isSol ? 0.2 : isTon ? 0.5 : 4,
+        nativeFeeText: `${highGwei} Gwei`,
+      },
+    };
+  }, [gasBaseGwei, fromToken]);
+
+  const activeGasEstimate = gasEstimates[selectedGasTier];
 
   // Calculate receive amount automatically
   const fromNum = parseFloat(fromAmount) || 0;
@@ -94,6 +173,13 @@ export const TokenSwap: React.FC = () => {
     setFromAmount(amt > 0 ? amt.toFixed(4) : '0');
   };
 
+  // Refresh gas fee manually
+  const refreshGasFee = () => {
+    setIsUpdatingGas(true);
+    setGasBaseGwei((prev) => parseFloat((12 + Math.random() * 25).toFixed(1)));
+    setTimeout(() => setIsUpdatingGas(false), 500);
+  };
+
   // Execute Swap workflow
   const handleExecuteSwap = async () => {
     if (!activeWallet) {
@@ -112,24 +198,22 @@ export const TokenSwap: React.FC = () => {
     }
 
     setIsSwapping(true);
-    setSwapStepText('Checking Liquidity & Slippage...');
+    setSwapStepText(`Estimating Gas Fee (${activeGasEstimate.label}: ${activeGasEstimate.nativeFeeText})...`);
 
     try {
-      await new Promise((r) => setTimeout(r, 900));
-      setSwapStepText('Signing Liquidity Approval Contract...');
+      await new Promise((r) => setTimeout(r, 800));
+      setSwapStepText(`Broadcasting Transaction (${activeGasEstimate.nativeFeeText} / ${formatCurrency(activeGasEstimate.costUsd)})...`);
 
-      await new Promise((r) => setTimeout(r, 1100));
+      await new Promise((r) => setTimeout(r, 1000));
       setSwapStepText(`Routing ${fromToken.symbol} ➔ ${toToken.symbol} On-Chain...`);
 
-      await new Promise((r) => setTimeout(r, 1200));
-
-      const minReceived = calculatedToAmount * (1 - slippage / 100);
+      await new Promise((r) => setTimeout(r, 1000));
 
       addToast(
         `Swap Complete! 🎉`,
-        `Successfully swapped ${fromAmount} ${fromToken.symbol} for ${calculatedToAmount.toFixed(
+        `Swapped ${fromAmount} ${fromToken.symbol} for ${calculatedToAmount.toFixed(
           4
-        )} ${toToken.symbol} at rate 1 ${fromToken.symbol} = ${exchangeRate.toFixed(4)} ${toToken.symbol}.`,
+        )} ${toToken.symbol} using ${activeGasEstimate.label} gas (${formatCurrency(activeGasEstimate.costUsd)}).`,
         'success'
       );
 
@@ -166,7 +250,7 @@ export const TokenSwap: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Cross-chain automated liquidity pool with instant on-chain settlement.
+              Cross-chain automated liquidity pool with real-time gas fee estimator.
             </p>
           </div>
         </div>
@@ -361,6 +445,68 @@ export const TokenSwap: React.FC = () => {
         </div>
       </div>
 
+      {/* REAL-TIME GAS FEE ESTIMATOR PANEL */}
+      <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Real-Time Gas Fee Estimator</h3>
+            <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+              <span className={`w-1.5 h-1.5 rounded-full ${isUpdatingGas ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
+              {gasBaseGwei} Gwei
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={refreshGasFee}
+            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition-colors"
+            title="Refresh Gas Fee Rates"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isUpdatingGas ? 'animate-spin text-cyan-400' : ''}`} />
+          </button>
+        </div>
+
+        {/* Gas Speed Selector Cards (Low, Medium, High) */}
+        <div className="grid grid-cols-3 gap-2">
+          {(['low', 'medium', 'high'] as GasSpeedTier[]).map((tierKey) => {
+            const est = gasEstimates[tierKey];
+            const isSelected = selectedGasTier === tierKey;
+
+            return (
+              <button
+                key={tierKey}
+                type="button"
+                onClick={() => setSelectedGasTier(tierKey)}
+                className={`p-3 rounded-xl border text-left transition-all relative ${
+                  isSelected
+                    ? 'bg-cyan-950/50 border-cyan-400 text-white ring-1 ring-cyan-400/50 shadow-lg'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px] font-bold">
+                  <span className={tierKey === 'low' ? 'text-emerald-400' : tierKey === 'medium' ? 'text-cyan-300' : 'text-amber-400'}>
+                    {tierKey === 'low' ? '🌱 Eco (Low)' : tierKey === 'medium' ? '⚡ Standard' : '🚀 Fast (High)'}
+                  </span>
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />}
+                </div>
+
+                <div className="mt-1 font-mono">
+                  <span className="text-sm font-black text-white block">
+                    {formatCurrency(est.costUsd)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block">{est.nativeFeeText}</span>
+                </div>
+
+                <div className="mt-1 text-[9.5px] font-mono text-slate-500 flex items-center gap-1">
+                  <Clock className="w-2.5 h-2.5" />
+                  <span>~{est.estimatedSeconds}s confirmation</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ROUTE & IMPACT SUMMARY */}
       <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs font-mono">
         <div className="flex items-center justify-between text-slate-400">
@@ -368,8 +514,10 @@ export const TokenSwap: React.FC = () => {
           <span className="text-emerald-400 font-bold">&lt; 0.05%</span>
         </div>
         <div className="flex items-center justify-between text-slate-400">
-          <span>Est. Network Gas Fee:</span>
-          <span className="text-slate-200 font-bold">$0.04 (NEXORUM Gas-Relay)</span>
+          <span>Selected Network Gas Fee ({activeGasEstimate.label}):</span>
+          <span className="text-cyan-300 font-bold flex items-center gap-1">
+            {formatCurrency(activeGasEstimate.costUsd)} ({activeGasEstimate.nativeFeeText})
+          </span>
         </div>
         <div className="flex items-center justify-between text-slate-400">
           <span>Minimum Received ({slippage}%):</span>
@@ -424,7 +572,7 @@ export const TokenSwap: React.FC = () => {
               <>
                 <Zap className="w-5 h-5 text-amber-300" />
                 <span>
-                  Swap {fromToken.symbol} ➔ {toToken.symbol} Now
+                  Swap {fromToken.symbol} ➔ {toToken.symbol} ({formatCurrency(activeGasEstimate.costUsd)} Fee)
                 </span>
               </>
             )}
