@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { WalletProvider } from './context/WalletContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { useViewportScale } from './hooks/useViewportScale';
 import { Sidebar } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -51,6 +52,9 @@ function MainContent() {
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const { theme } = useTheme();
+
+  // Dynamically calculate and inject viewport-aware scaling CSS properties
+  useViewportScale();
 
   const renderView = () => {
     switch (activeTab) {

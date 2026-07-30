@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useViewportScale, calculateViewportScale, ViewportScaleInfo } from './useViewportScale';
+
+export { useViewportScale, calculateViewportScale };
+export type { ViewportScaleInfo };
 
 export interface DeviceInfo {
   isMobile: boolean;
@@ -10,6 +14,8 @@ export interface DeviceInfo {
   width: number;
   height: number;
   orientation: 'portrait' | 'landscape';
+  fontScale: number;
+  paddingScale: number;
 }
 
 function getOS(): 'iOS' | 'Android' | 'macOS' | 'Windows' | 'Linux' | 'Unknown' {
@@ -39,6 +45,8 @@ function getDeviceInfo(): DeviceInfo {
       width: 1280,
       height: 800,
       orientation: 'landscape',
+      fontScale: 1.0,
+      paddingScale: 1.0,
     };
   }
 
@@ -63,6 +71,8 @@ function getDeviceInfo(): DeviceInfo {
 
   const orientation: 'portrait' | 'landscape' = height > width ? 'portrait' : 'landscape';
 
+  const scale = calculateViewportScale(width, height);
+
   return {
     isMobile,
     isTablet,
@@ -73,6 +83,8 @@ function getDeviceInfo(): DeviceInfo {
     width,
     height,
     orientation,
+    fontScale: scale.fontScale,
+    paddingScale: scale.paddingScale,
   };
 }
 
