@@ -17,14 +17,21 @@ import {
   ExternalLink,
   ShieldCheck,
   Cpu,
+  X,
+  Smartphone,
+  Monitor,
+  CheckCircle2,
 } from 'lucide-react';
 import { NEXORUM_PLUGIN_MANIFEST } from '../lib/nexorumKernel';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isMobileDrawerOpen?: boolean;
+  onCloseMobileDrawer?: () => void;
 }
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -39,16 +46,29 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   ShieldAlert: <ShieldAlert className="w-5 h-5" />,
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  setActiveTab,
+  isMobileDrawerOpen = false,
+  onCloseMobileDrawer,
+}) => {
   const { user, isAdminUnlocked } = useAuth();
+  const deviceInfo = useDeviceDetect();
 
   const userMenuItems = NEXORUM_PLUGIN_MANIFEST.menu.filter((item) => item.id !== 'admin');
   const adminMenuItem = NEXORUM_PLUGIN_MANIFEST.menu.find((item) => item.id === 'admin');
 
-  return (
-    <aside className="w-64 bg-slate-950/80 backdrop-blur-xl border-r border-slate-800/80 flex flex-col h-screen sticky top-0 z-40 select-none">
+  const handleNavClick = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onCloseMobileDrawer) {
+      onCloseMobileDrawer();
+    }
+  };
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-slate-950/95 backdrop-blur-2xl text-slate-100 select-none overflow-hidden">
       {/* OS Kernel Header */}
-      <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
+      <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 p-[1px] shadow-lg shadow-cyan-500/20">
             <div className="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center">
@@ -62,13 +82,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
                 OS
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium">Web3 Application v1.0</p>
+            <p className="text-[11px] text-slate-400 font-medium">Web3 Platform v1.0</p>
           </div>
+        </div>
+
+        {/* Mobile Close Button */}
+        {onCloseMobileDrawer && (
+          <button
+            onClick={onCloseMobileDrawer}
+            className="md:hidden p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+            aria-label="Close Mobile Navigation"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+
+      {/* Auto-Detected Device Environment Status */}
+      <div className="mx-3 my-2 p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 space-y-1 text-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {deviceInfo.isMobile ? (
+              <Smartphone className="w-4 h-4 text-cyan-400 animate-pulse" />
+            ) : (
+              <Monitor className="w-4 h-4 text-emerald-400" />
+            )}
+            <span className="text-white font-bold text-[11px]">
+              {deviceInfo.isMobile ? 'Mobile Web Detected' : 'PC Desktop Active'}
+            </span>
+          </div>
+          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+            {deviceInfo.os}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1 border-t border-slate-800/60">
+          <span>Viewport: {deviceInfo.width}×{deviceInfo.height}</span>
+          <span className="text-emerald-400 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Auto-Optimized
+          </span>
         </div>
       </div>
 
       {/* Web3 Network Sync Badge */}
-      <div className="mx-3 my-2 p-2.5 rounded-xl bg-slate-900/90 border border-emerald-500/30 flex items-center justify-between text-xs">
+      <div className="mx-3 mb-2 p-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2 min-w-0">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -88,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         {/* Regular User Workspace */}
         <div className="space-y-1">
           <div className="px-3 py-1 text-[10px] font-semibold tracking-wider text-slate-500 uppercase flex items-center justify-between">
-            <span>User Workspace</span>
+            <span>Workspace Modules</span>
             <span className="text-[9px] text-cyan-400 font-mono">ACTIVE</span>
           </div>
           {userMenuItems.map((item) => {
@@ -97,12 +153,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
               <button
                 key={item.id}
                 id={`nav_btn_${item.id}`}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleNavClick(item.id)}
                 className={cn(
-                  'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative',
+                  'w-full flex items-center justify-between px-3.5 py-3 md:py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative cursor-pointer min-h-[44px]',
                   isActive
                     ? 'bg-gradient-to-r from-cyan-500/15 to-blue-600/10 text-cyan-300 border border-cyan-500/30 shadow-md shadow-cyan-950/40'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent active:bg-slate-900'
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -160,9 +216,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
 
             <button
               id={`nav_btn_${adminMenuItem.id}`}
-              onClick={() => setActiveTab('admin')}
+              onClick={() => handleNavClick('admin')}
               className={cn(
-                'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative',
+                'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative cursor-pointer min-h-[44px]',
                 activeTab === 'admin'
                   ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-md shadow-rose-950/40'
                   : 'text-slate-400 hover:text-rose-300 hover:bg-slate-900/60 border border-transparent'
@@ -203,8 +259,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         </p>
         <button
           id="btn_ai_quick_prompt"
-          onClick={() => setActiveTab('ai')}
-          className="mt-2.5 w-full py-1.5 px-3 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+          onClick={() => handleNavClick('ai')}
+          className="mt-2.5 w-full py-2 px-3 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 min-h-[44px]"
         >
           <span>Ask AI Assistant</span>
           <ChevronRight className="w-3.5 h-3.5" />
@@ -219,6 +275,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           <span>Mainnet Sync</span>
         </span>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar */}
+      <aside className="hidden md:flex w-64 border-r border-slate-800/80 flex-col h-screen sticky top-0 z-40 select-none shrink-0">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Slide-Over Navigation Drawer */}
+      {isMobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
+            onClick={onCloseMobileDrawer}
+          />
+          {/* Slide-in drawer container */}
+          <div className="relative w-4/5 max-w-xs h-full bg-slate-950 border-r border-slate-800 shadow-2xl animate-in slide-in-from-left duration-250 z-10">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
+
