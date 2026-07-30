@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Recorded swap or transfer transaction",
+      "type": "object",
+      "properties": {
+        "txId": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "fromToken": { "type": "string" },
+        "toToken": { "type": "string" },
+        "amount": { "type": "number" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["txId", "userId", "type", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores basic user profile"
+    },
+    "/users/{userId}/transactions/{txId}": {
+      "schema": "Transaction",
+      "description": "User's recorded transaction history"
+    }
+  }
+}
