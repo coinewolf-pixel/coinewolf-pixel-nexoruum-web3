@@ -3,7 +3,7 @@ import { ConnectedWallet, NetworkId } from '../types';
 
 // Standard public RPCs for multi-chain connectivity
 export const CHAIN_RPC_MAP: Record<string, string> = {
-  ethereum: 'https://eth.llamarpc.com',
+  ethereum: 'https://cloudflare-eth.com',
   bsc: 'https://bsc-dataseed.binance.org/',
   polygon: 'https://polygon-rpc.com',
   arbitrum: 'https://arb1.arbitrum.io/rpc',

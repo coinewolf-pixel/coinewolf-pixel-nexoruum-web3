@@ -432,7 +432,7 @@ function buildDb() {
     rpcUrls: {
       nexorum: 'https://rpc.nexorum.network',
       nexorum_testnet: 'https://testnet-rpc.nexorum.network',
-      ethereum: 'https://eth.llamarpc.com',
+      ethereum: 'https://cloudflare-eth.com',
       bsc: 'https://bsc-dataseed.binance.org/',
       polygon: 'https://polygon-rpc.com/',
       arbitrum: 'https://arb1.arbitrum.io/rpc',
@@ -1731,11 +1731,14 @@ app.post('/api/v1/rpc/:network', async (c) => {
   if (!targetUrl) return c.json({ error: `Unknown network: ${network}` }, 400);
 
   const body = await c.req.text();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000);
   try {
     const upstream = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
+      signal: controller.signal,
     });
     const text = await upstream.text();
     return new Response(text, {
@@ -1743,7 +1746,13 @@ app.post('/api/v1/rpc/:network', async (c) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
-    return c.json({ error: `RPC proxy failed: ${err?.message || 'unknown error'}` }, 502);
+    const isTimeout = err?.name === 'AbortError';
+    return c.json(
+      { error: isTimeout ? `RPC proxy timed out reaching ${network} upstream` : `RPC proxy failed: ${err?.message || 'unknown error'}` },
+      502
+    );
+  } finally {
+    clearTimeout(timeout);
   }
 });
 
