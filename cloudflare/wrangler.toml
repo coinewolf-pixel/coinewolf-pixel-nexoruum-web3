@@ -19,6 +19,6 @@ database_id = "00000000-0000-0000-0000-000000000000"
 binding = "NEXORUM_KV"
 id = "00000000000000000000000000000000"
 
-[routes]
+[[routes]]
 pattern = "web3.nexorum.os/*"
 zone_name = "nexorum.os"

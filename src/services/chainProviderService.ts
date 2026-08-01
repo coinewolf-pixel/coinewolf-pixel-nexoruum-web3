@@ -39,9 +39,19 @@ const ERC20_ABI = [
 ];
 
 /**
- * Gets an ethers JsonRpcProvider for the specified network
+ * Gets an ethers JsonRpcProvider for the specified network.
+ *
+ * Public RPC endpoints (llamarpc, binance, etc.) generally do NOT send
+ * Access-Control-Allow-Origin, so calling them directly from the browser
+ * fails with a CORS error. Instead we route through our own same-origin
+ * `/api/v1/rpc/:network` endpoint, which forwards the JSON-RPC call
+ * server-side (see cloudflare/worker.ts) where CORS doesn't apply.
  */
 export function getJsonRpcProvider(networkId: string): ethers.JsonRpcProvider {
+  if (typeof window !== 'undefined') {
+    const proxyUrl = `${window.location.origin}/api/v1/rpc/${networkId}`;
+    return new ethers.JsonRpcProvider(proxyUrl);
+  }
   const rpcUrl = CHAIN_RPC_MAP[networkId] || CHAIN_RPC_MAP.ethereum;
   return new ethers.JsonRpcProvider(rpcUrl);
 }
