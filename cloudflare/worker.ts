@@ -27,6 +27,7 @@ import { GoogleGenAI } from '@google/genai';
 
 export interface Env {
   DB?: unknown;
+  ASSETS: any; // Fetcher — see NEXORUM_KV note above re: global types
   NEXORUM_KV?: any; // KVNamespace — typed loosely here since the shared root tsconfig doesn't include @cloudflare/workers-types globally
   GEMINI_API_KEY?: string;
   ADMIN_API_TOKEN?: string;
@@ -1747,5 +1748,13 @@ app.post('/api/v1/rpc/:network', async (c) => {
 });
 
 app.all('/api/*', (c) => c.json({ error: 'Not found', path: new URL(c.req.url).pathname }, 404));
+
+// With `run_worker_first = true` in wrangler.toml, every request hits this
+// Worker before Cloudflare's static asset handler. Any path that isn't an
+// API route (everything above returns before reaching here) is served from
+// the built frontend via the ASSETS binding — which itself falls back to
+// index.html for unmatched paths (not_found_handling =
+// "single-page-application"), giving correct client-side routing.
+app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;
