@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Recorded swap or transfer transaction",
+      "type": "object",
+      "properties": {
+        "txId": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "fromToken": { "type": "string" },
+        "toToken": { "type": "string" },
+        "amount": { "type": "number" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["txId", "userId", "type", "timestamp"]
+    },
+    "DeviceSession": {
+      "title": "DeviceSession",
+      "description": "User login session and trusted device record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "deviceName": { "type": "string" },
+        "deviceCategory": { "type": "string" },
+        "os": { "type": "string" },
+        "browser": { "type": "string" },
+        "isTrusted": { "type": "boolean" },
+        "lastActive": { "type": "string" },
+        "location": { "type": "string" },
+        "ipAddress": { "type": "string font" }
+      },
+      "required": ["id", "userId", "deviceName", "lastActive"]
+    },
+    "DailyClaim": {
+      "title": "DailyClaim",
+      "description": "Daily check-in and streak tracking record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "lastClaimTimestamp": { "type": "number" },
+        "streak": { "type": "number" },
+        "totalClaimed": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "lastClaimTimestamp", "streak", "totalClaimed"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores basic user profile"
+    },
+    "/users/{userId}/transactions/{txId}": {
+      "schema": "Transaction",
+      "description": "User's recorded transaction history"
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "DeviceSession",
+      "description": "Trusted device and active session history"
+    },
+    "/users/{userId}/claims/{claimId}": {
+      "schema": "DailyClaim",
+      "description": "User's daily check-in streak and timestamp"
+    }
+  }
+}

@@ -3,8 +3,10 @@ import { AuthProvider } from './context/AuthContext';
 import { WalletProvider } from './context/WalletContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { useViewportScale } from './hooks/useViewportScale';
 import { Sidebar } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { WalletModal } from './components/WalletModal';
 import { TelegramAuthModal } from './components/TelegramAuthModal';
 import { NotificationsDrawer } from './components/NotificationsDrawer';
@@ -23,11 +25,11 @@ function ToastContainer() {
   const { toasts, removeToast } = useNotifications();
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-[calc(100vw-2rem)]">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto max-w-sm p-4 rounded-2xl bg-slate-900/95 border border-cyan-500/40 shadow-2xl text-xs text-white animate-in slide-in-from-bottom-2 duration-300 backdrop-blur-xl flex justify-between items-start gap-3"
+          className="pointer-events-auto max-w-sm p-3.5 sm:p-4 rounded-2xl bg-slate-900/95 border border-cyan-500/40 shadow-2xl text-xs text-white animate-in slide-in-from-bottom-2 duration-300 backdrop-blur-xl flex justify-between items-start gap-3"
         >
           <div>
             <h4 className="font-bold text-cyan-300">{t.title}</h4>
@@ -35,7 +37,7 @@ function ToastContainer() {
           </div>
           <button
             onClick={() => removeToast(t.id)}
-            className="text-slate-500 hover:text-white"
+            className="text-slate-500 hover:text-white p-1"
           >
             ×
           </button>
@@ -48,7 +50,11 @@ function ToastContainer() {
 function MainContent() {
   const [activeTab, setActiveTab] = useState('home');
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const { theme } = useTheme();
+
+  // Dynamically calculate and inject viewport-aware scaling CSS properties
+  useViewportScale();
 
   const renderView = () => {
     switch (activeTab) {
@@ -83,20 +89,34 @@ function MainContent() {
           : 'bg-slate-950 text-slate-100 dark'
       }`}
     >
-      {/* Sidebar */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Sidebar (Desktop persistent & Mobile drawer modal) */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isMobileDrawerOpen={isMobileDrawerOpen}
+        onCloseMobileDrawer={() => setIsMobileDrawerOpen(false)}
+      />
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
         <TopNav
           setActiveTab={setActiveTab}
           openTelegramModal={() => setIsTelegramModalOpen(true)}
+          onOpenMobileDrawer={() => setIsMobileDrawerOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
           {renderView()}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isMobileDrawerOpen={isMobileDrawerOpen}
+        setIsMobileDrawerOpen={setIsMobileDrawerOpen}
+      />
 
       {/* Global Modals & Overlay Panels */}
       <WalletModal />

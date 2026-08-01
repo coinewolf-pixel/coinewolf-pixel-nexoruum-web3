@@ -1,6 +1,5 @@
 import { ethers } from 'ethers';
 import { ConnectedWallet, NetworkId } from '../types';
-import { appKitModal } from '../lib/appkit';
 
 // Standard public RPCs for multi-chain connectivity
 export const CHAIN_RPC_MAP: Record<string, string> = {
@@ -245,6 +244,7 @@ export async function connectWithReownAppKit(): Promise<{
   balanceUsd: number;
 } | null> {
   if (typeof window === 'undefined') return null;
+  const { appKitModal } = await import('../lib/appkit');
 
   return new Promise((resolve, reject) => {
     let settled = false;

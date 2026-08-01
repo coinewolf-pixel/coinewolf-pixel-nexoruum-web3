@@ -197,7 +197,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // 5. Query real on-chain EVM balances (ETH, BNB, USDT, etc.) via ethers.js JsonRpcProviders
+    // 3. Query real on-chain EVM balances (ETH, BNB, USDT, etc.) via ethers.js JsonRpcProviders
     if (address && address.startsWith('0x') && address.length === 42) {
       try {
         const onChainRes = await fetchOnChainBalances(address, targetNetwork);

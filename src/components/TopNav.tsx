@@ -17,11 +17,13 @@ import {
   Lock,
   Sun,
   Moon,
+  Laptop,
   Check,
   Cpu,
   Server,
   Radio,
   Layers,
+  Menu,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useAuth } from '../context/AuthContext';
@@ -34,13 +36,14 @@ import { getWalletLogo } from './WalletLogos';
 interface TopNavProps {
   setActiveTab: (tab: string) => void;
   openTelegramModal: () => void;
+  onOpenMobileDrawer?: () => void;
 }
 
-export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal }) => {
+export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal, onOpenMobileDrawer }) => {
   const { activeWallet, activeNetwork, networks, switchNetwork, openWalletModal } = useWallet();
   const { user, isAdminUnlocked } = useAuth();
   const { unreadCount, openDrawer, addToast } = useNotifications();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark, isSystemAuto, mode, themeName } = useTheme();
 
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -70,16 +73,28 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
   const isNexoTestnet = activeNetwork?.id === 'nexorum_testnet';
 
   return (
-    <header className="h-16 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-6 flex items-center justify-between sticky top-0 z-30">
-      {/* Global Search Bar */}
-      <div className="flex items-center gap-3 flex-1 max-w-md">
+    <header className="h-16 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+      {/* Mobile Drawer Button & Logo / Search */}
+      <div className="flex items-center gap-2 flex-1 max-w-md">
+        {onOpenMobileDrawer && (
+          <button
+            id="btn_top_mobile_drawer_toggle"
+            onClick={onOpenMobileDrawer}
+            className="md:hidden p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white shrink-0 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Open Mobile Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Global Search Bar */}
         <button
           id="btn_global_search_trigger"
           onClick={() => setActiveTab('search')}
-          className="w-full flex items-center gap-3 bg-slate-900/80 hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800/80 hover:border-slate-700 px-3.5 py-2 rounded-xl text-sm transition-all duration-200 group"
+          className="w-full flex items-center gap-2.5 bg-slate-900/80 hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800/80 hover:border-slate-700 px-3 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 group min-h-[44px]"
         >
-          <Search className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
-          <span className="text-slate-400 truncate">Search tokens, wallets, NFTs...</span>
+          <Search className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors shrink-0" />
+          <span className="text-slate-400 truncate text-left">Search tokens, wallets, NFTs...</span>
           <kbd className="ml-auto hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 bg-slate-800 rounded border border-slate-700">
             ⌘K
           </kbd>
@@ -87,16 +102,16 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 ml-2">
         {/* Admin Badge - Only shown when admin mode is explicitly unlocked */}
         {isAdminUnlocked && (
           <button
             id="btn_top_admin_mode_badge"
             onClick={() => setActiveTab('admin')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Admin Unlocked</span>
+            <span>Admin</span>
           </button>
         )}
 
@@ -105,7 +120,7 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
           <button
             id="btn_network_switcher"
             onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer min-h-[44px] ${
               isNexoMainnet
                 ? 'bg-emerald-950/70 border-emerald-600/60 text-emerald-200 hover:bg-emerald-900/80 shadow-lg shadow-emerald-950/40'
                 : isNexoTestnet
@@ -115,7 +130,7 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
             title="Switch Blockchain Network & Environment Provider"
           >
             <div
-              className={`w-2.5 h-2.5 rounded-full animate-pulse ${
+              className={`w-2.5 h-2.5 rounded-full animate-pulse shrink-0 ${
                 isNexoMainnet
                   ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
                   : isNexoTestnet
@@ -123,15 +138,15 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
                   : 'bg-cyan-400'
               }`}
             />
-            <span className="font-bold truncate max-w-[130px]">
-              {activeNetwork?.name || 'NEXORUM Mainnet'}
+            <span className="font-bold truncate max-w-[80px] sm:max-w-[130px]">
+              {activeNetwork?.name || 'NEXORUM'}
             </span>
-            <div className="flex items-center gap-1 text-[10px] font-mono text-slate-300 bg-slate-950/90 px-1.5 py-0.5 rounded-lg border border-slate-800">
+            <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-300 bg-slate-950/90 px-1.5 py-0.5 rounded-lg border border-slate-800">
               <Flame className="w-3 h-3 text-amber-400" />
-              <span>{activeNetwork?.gasPriceGwei || 0.01} Gwei</span>
+              <span>{activeNetwork?.gasPriceGwei || 0.01}G</span>
             </div>
             <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+              className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${
                 isNetworkDropdownOpen ? 'rotate-180 text-cyan-400' : ''
               }`}
             />
@@ -299,13 +314,20 @@ export const TopNav: React.FC<TopNavProps> = ({ setActiveTab, openTelegramModal 
           id="btn_theme_toggle"
           onClick={toggleTheme}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer ${
-            isDark
+            isSystemAuto
+              ? 'bg-cyan-950/80 hover:bg-cyan-900/80 border-cyan-500/40 text-cyan-200'
+              : isDark
               ? 'bg-slate-900/90 hover:bg-slate-800/90 border-slate-800 text-slate-200 hover:border-cyan-500/40'
               : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-sm'
           }`}
-          title={`Switch to ${isDark ? 'Minimalist Light' : 'Cybernetic Dark'} Mode`}
+          title={`Current: ${themeName}. Click to cycle: System Auto ➔ Dark ➔ Light`}
         >
-          {isDark ? (
+          {isSystemAuto ? (
+            <>
+              <Laptop className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span className="hidden sm:inline font-mono text-[11px] text-cyan-300">Auto (OS)</span>
+            </>
+          ) : isDark ? (
             <>
               <Moon className="w-3.5 h-3.5 text-cyan-400" />
               <span className="hidden sm:inline font-mono text-[11px] text-cyan-300">Cybernetic Dark</span>

@@ -5,8 +5,14 @@ import crypto from 'crypto';
 import { ethers } from 'ethers';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import firebaseConfig from './firebase-applet-config.json';
 
 dotenv.config();
+
+const firebaseApp = initializeApp(firebaseConfig);
+const firestoreDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 const app = express();
 const PORT = 3000;
@@ -544,6 +550,27 @@ app.post('/api/v1/user/export-nexo-vault', (req, res) => {
 
   if (!user || !user.encryptedPrivateKey) {
     return res.status(404).json({ error: 'NEXO Non-Custodial Vault not found' });
+  }
+
+  // SECURITY: actually verify the PIN before decrypting/returning the
+  // private key + mnemonic, instead of accepting the `pin` field unchecked.
+  if (!(user as any).vaultPinHash) {
+    if (!pin || String(pin).length < 4) {
+      return res.status(400).json({ error: 'A PIN (min 4 digits) is required to protect this vault export.' });
+    }
+    (user as any).vaultPinHash = crypto.createHash('sha256').update(String(pin)).digest('hex');
+  } else if (!pin || crypto.createHash('sha256').update(String(pin)).digest('hex') !== (user as any).vaultPinHash) {
+    db.auditLogs.unshift({
+      id: `log_${Date.now()}`,
+      userId: user.id,
+      action: 'VAULT_EXPORT_DENIED_BAD_PIN',
+      category: 'SECURITY',
+      details: `Failed vault export attempt for ${user.nexoVaultAddress}: incorrect PIN.`,
+      ipAddress: req.ip || '127.0.0.1',
+      status: 'FAILED',
+      timestamp: new Date().toISOString(),
+    });
+    return res.status(401).json({ error: 'Incorrect PIN.' });
   }
 
   const decryptedKey = decryptVaultData(user.encryptedPrivateKey);
@@ -1743,31 +1770,68 @@ app.post('/api/v1/airdrops/claim', (req, res) => {
   });
 });
 
-// Daily Check-In & Streak Airdrop Engine (Max 300 NEX over 30 days)
-const DAILY_REWARDS_SCHEDULE = [8, 9, 10, 10, 11, 11, 11]; // Sums to ~70 NEX per week (max 300 NEX over 30 days)
+// Daily 24-Hour Check-In & Streak Airdrop Engine (+25 NEX Day 1, 24h cooldown)
+const DAILY_REWARDS_SCHEDULE = [25, 30, 35, 40, 45, 50, 60];
+const CLAIM_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 Hours cooldown
 
-app.get('/api/v1/airdrops/daily-status', (req, res) => {
-  const userId = (req.query.userId as string) || 'usr_nex_982341';
-  if (!db.dailyClaims[userId]) {
-    db.dailyClaims[userId] = {
-      streak: 1,
-      lastClaimTimestamp: 0,
-      totalClaimed: 0,
-    };
+interface DailyClaimRecord {
+  streak: number;
+  lastClaimTimestamp: number;
+  totalClaimed: number;
+}
+
+async function getDailyClaimFromFirestore(userId: string): Promise<DailyClaimRecord> {
+  try {
+    const docRef = doc(firestoreDb, 'users', userId, 'claims', 'daily');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        streak: Number(data.streak) || 1,
+        lastClaimTimestamp: Number(data.lastClaimTimestamp) || 0,
+        totalClaimed: Number(data.totalClaimed) || 0,
+      };
+    }
+  } catch (err) {
+    console.error('[Firestore] getDailyClaim error:', err);
   }
+  if (!db.dailyClaims[userId]) {
+    db.dailyClaims[userId] = { streak: 1, lastClaimTimestamp: 0, totalClaimed: 0 };
+  }
+  return db.dailyClaims[userId];
+}
 
-  const claimInfo = db.dailyClaims[userId];
+async function saveDailyClaimToFirestore(userId: string, claimData: DailyClaimRecord): Promise<void> {
+  db.dailyClaims[userId] = claimData;
+  try {
+    const docRef = doc(firestoreDb, 'users', userId, 'claims', 'daily');
+    await setDoc(docRef, {
+      userId,
+      streak: claimData.streak,
+      lastClaimTimestamp: claimData.lastClaimTimestamp,
+      totalClaimed: claimData.totalClaimed,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (err) {
+    console.error('[Firestore] saveDailyClaim error:', err);
+  }
+}
+
+app.get('/api/v1/airdrops/daily-status', async (req, res) => {
+  const userId = (req.query.userId as string) || 'usr_nex_982341';
+  const claimInfo = await getDailyClaimFromFirestore(userId);
+
   const now = Date.now();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   const elapsed = now - claimInfo.lastClaimTimestamp;
 
-  // Streak reset check: if user missed more than 48 hours, reset streak to 1
+  // Reset streak if missed more than 48 hours
   if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
     claimInfo.streak = 1;
+    await saveDailyClaimToFirestore(userId, claimInfo);
   }
 
-  const canClaimNow = claimInfo.lastClaimTimestamp === 0 || elapsed >= ONE_DAY_MS;
-  const timeUntilNextClaimMs = canClaimNow ? 0 : ONE_DAY_MS - elapsed;
+  const canClaimNow = claimInfo.lastClaimTimestamp === 0 || elapsed >= CLAIM_INTERVAL_MS;
+  const timeUntilNextClaimMs = canClaimNow ? 0 : CLAIM_INTERVAL_MS - elapsed;
   const currentRewardNex = DAILY_REWARDS_SCHEDULE[(claimInfo.streak - 1) % 7];
 
   res.json({
@@ -1782,40 +1846,38 @@ app.get('/api/v1/airdrops/daily-status', (req, res) => {
   });
 });
 
-app.post('/api/v1/airdrops/daily-claim', (req, res) => {
+app.post('/api/v1/airdrops/daily-claim', async (req, res) => {
   const { userId } = req.body;
   const targetUserId = userId || 'usr_nex_982341';
   const user = db.users.find((u) => u.id === targetUserId) || db.users[0];
 
-  if (!db.dailyClaims[targetUserId]) {
-    db.dailyClaims[targetUserId] = {
-      streak: 1,
-      lastClaimTimestamp: 0,
-      totalClaimed: 0,
-    };
-  }
-
-  const claimInfo = db.dailyClaims[targetUserId];
+  const claimInfo = await getDailyClaimFromFirestore(targetUserId);
   const now = Date.now();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   const elapsed = now - claimInfo.lastClaimTimestamp;
 
-  if (claimInfo.lastClaimTimestamp > 0 && elapsed < ONE_DAY_MS) {
-    const hoursLeft = Math.ceil((ONE_DAY_MS - elapsed) / (60 * 60 * 1000));
+  if (claimInfo.lastClaimTimestamp > 0 && elapsed < CLAIM_INTERVAL_MS) {
+    const hoursLeft = Math.ceil((CLAIM_INTERVAL_MS - elapsed) / (60 * 60 * 1000));
     return res.status(400).json({
+      success: false,
       error: `Daily reward already claimed today! Next reward opens in ${hoursLeft} hours.`,
-      nextClaimAvailableInMs: ONE_DAY_MS - elapsed,
+      nextClaimAvailableInMs: CLAIM_INTERVAL_MS - elapsed,
     });
   }
 
-  // Reset streak if missed 2 days
+  // Reset streak if missed 2 days (48 hours)
   if (claimInfo.lastClaimTimestamp > 0 && elapsed > 48 * 60 * 60 * 1000) {
     claimInfo.streak = 1;
   }
 
   const rewardAmountNex = DAILY_REWARDS_SCHEDULE[(claimInfo.streak - 1) % 7];
+  const claimedStreak = claimInfo.streak;
+
   claimInfo.totalClaimed += rewardAmountNex;
   claimInfo.lastClaimTimestamp = now;
+  claimInfo.streak = (claimInfo.streak % 7) + 1;
+
+  // Persist updated state to Firestore
+  await saveDailyClaimToFirestore(targetUserId, claimInfo);
 
   // Credit NEX tokens directly into user's wallet balance for staking!
   if (user) {
@@ -1865,17 +1927,13 @@ app.post('/api/v1/airdrops/daily-claim', (req, res) => {
   db.notifications.unshift({
     id: `notif_${Date.now()}`,
     userId: user.id,
-    title: `🎁 Day ${claimInfo.streak} Daily Reward Claimed!`,
+    title: `🎁 Day ${claimedStreak} Daily Reward Claimed!`,
     message: `You earned ${rewardAmountNex} NEX tokens credited to your connected wallet! You can now stake your NEX tokens in the Staking Engine to earn compound interest.`,
     type: 'WALLET',
     isRead: false,
     actionUrl: '/profile',
     createdAt: new Date().toISOString(),
   });
-
-  // Advance streak to next day for tomorrow
-  const claimedStreak = claimInfo.streak;
-  claimInfo.streak = (claimInfo.streak % 7) + 1;
 
   res.json({
     success: true,

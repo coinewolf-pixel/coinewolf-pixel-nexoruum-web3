@@ -63,6 +63,14 @@ export interface UserProfile {
 
 export type TokenStandard = 'NEX20' | 'ERC20' | 'BEP20' | 'SPL' | 'TON_JETTON';
 
+export interface TokenSocialLinks {
+  telegram?: string;
+  twitter?: string;
+  facebook?: string;
+  youtube?: string;
+  website?: string;
+}
+
 export interface TokenItem {
   id: string;
   name: string;
@@ -85,6 +93,7 @@ export interface TokenItem {
   isVerified?: boolean;
   liquidityPoolAddress?: string;
   sparkline: number[];
+  socials?: TokenSocialLinks;
 }
 
 export type MarketplaceCategory = 'Tokens' | 'NFT' | 'AI Agents' | 'Plugins' | 'Digital Products' | 'Templates';

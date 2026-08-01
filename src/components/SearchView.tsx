@@ -18,11 +18,12 @@ export const SearchView: React.FC<SearchViewProps> = ({ setActiveTab }) => {
   ];
 
   const filtered = mockResults.filter((item) => {
+    const q = (query || '').toLowerCase();
     const matchesTab = searchTab === 'All' || item.type === searchTab || (searchTab === 'Tokens' && item.type === 'Token');
     const matchesText =
-      item.title.toLowerCase().includes(query.toLowerCase()) ||
-      item.symbol.toLowerCase().includes(query.toLowerCase()) ||
-      item.address.toLowerCase().includes(query.toLowerCase());
+      (item.title || '').toLowerCase().includes(q) ||
+      (item.symbol || '').toLowerCase().includes(q) ||
+      (item.address || '').toLowerCase().includes(q);
     return matchesTab && matchesText;
   });
 

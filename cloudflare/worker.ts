@@ -1403,7 +1403,7 @@ app.post('/api/v1/airdrops/claim', async (c) => {
   return c.json({ success: true, message: `Successfully claimed ${airdrop.amountPerUser} ${airdrop.symbol}!`, airdrop });
 });
 
-const DAILY_REWARDS_SCHEDULE = [8, 9, 10, 10, 11, 11, 11];
+const DAILY_REWARDS_SCHEDULE = [25, 30, 35, 40, 45, 50, 60];
 
 app.get('/api/v1/airdrops/daily-status', (c) => {
   const userId = c.req.query('userId') || 'usr_nex_982341';

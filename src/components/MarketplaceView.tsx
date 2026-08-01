@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { MarketplaceItem, MarketplaceCategory } from '../types';
 import { formatAddress } from '../lib/utils';
+import { SwipeableContainer } from './SwipeableContainer';
 
 export const MarketplaceView: React.FC = () => {
   const { activeWallet } = useWallet();
@@ -150,9 +151,13 @@ export const MarketplaceView: React.FC = () => {
 
       {/* Buy Confirmation Modal */}
       {buyingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5">
-            <h3 className="text-lg font-extrabold text-white">Confirm Purchase</h3>
+        <SwipeableContainer
+          onClose={() => setBuyingItem(null)}
+          direction="down"
+          backdropClassName="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4"
+          className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5"
+        >
+          <h3 className="text-lg font-extrabold text-white">Confirm Purchase</h3>
 
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
               <div className="flex justify-between">
@@ -189,8 +194,7 @@ export const MarketplaceView: React.FC = () => {
                 {isProcessing ? 'Verifying...' : 'Confirm Transaction'}
               </button>
             </div>
-          </div>
-        </div>
+        </SwipeableContainer>
       )}
     </div>
   );

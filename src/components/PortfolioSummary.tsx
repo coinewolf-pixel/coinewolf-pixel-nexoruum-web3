@@ -20,6 +20,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { SwipeableContainer } from './SwipeableContainer';
 import {
   ResponsiveContainer,
   PieChart as RechartsPieChart,
@@ -34,6 +35,8 @@ import {
 } from 'recharts';
 import { formatCurrency, formatNumber } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import { PortfolioAlertsWidget } from './PortfolioAlertsWidget';
 
 export interface TokenHolding {
   id: string; // CoinGecko API ID e.g. "ethereum", "bitcoin", "solana", "binancecoin", "nexorum", "the-open-network", "tether", "usd-coin"
@@ -139,6 +142,7 @@ const AVAILABLE_TOKENS_LIST = [
 
 export const PortfolioSummary: React.FC = () => {
   const { user } = useAuth();
+  const { checkPortfolioVolatility } = useNotifications();
 
   // Holdings state
   const [holdings, setHoldings] = useState<TokenHolding[]>(() => {
@@ -290,6 +294,13 @@ export const PortfolioSummary: React.FC = () => {
   const totalPortfolioValueUsd = calculatedHoldings.reduce((sum, item) => sum + item.totalValueUsd, 0);
   const total24hValueChangeUsd = calculatedHoldings.reduce((sum, item) => sum + item.valueChange24hUsd, 0);
   const total24hPercentChange = totalPortfolioValueUsd > 0 ? (total24hValueChangeUsd / totalPortfolioValueUsd) * 100 : 0;
+
+  // Auto-check portfolio volatility when holdings update
+  useEffect(() => {
+    if (calculatedHoldings.length > 0) {
+      checkPortfolioVolatility(calculatedHoldings);
+    }
+  }, [calculatedHoldings, checkPortfolioVolatility]);
 
   // Add percentage share to each calculated item
   const holdingsWithShare = calculatedHoldings
@@ -484,6 +495,9 @@ export const PortfolioSummary: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Real-time Portfolio Volatility Alert System */}
+      <PortfolioAlertsWidget />
 
       {/* Interactive Recharts Portfolio Allocation Analytics */}
       <motion.div
@@ -746,123 +760,129 @@ export const PortfolioSummary: React.FC = () => {
 
       {/* MODAL 1: Edit Token Amount */}
       {editingToken && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-cyan-400" />
-                <span>Adjust {editingToken.name} Holding</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingToken(null)}
-                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs text-slate-300 font-bold block">
-                Total {editingToken.symbol} Amount:
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={editAmountInput}
-                onChange={(e) => setEditAmountInput(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:border-cyan-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditingToken(null)}
-                className="py-2 px-4 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveTokenAmount}
-                className="py-2 px-5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20"
-              >
-                Save Amount
-              </button>
-            </div>
+        <SwipeableContainer
+          onClose={() => setEditingToken(null)}
+          direction="down"
+          backdropClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+          className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl"
+        >
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Edit3 className="w-4 h-4 text-cyan-400" />
+              <span>Adjust {editingToken.name} Holding</span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setEditingToken(null)}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        </div>
+
+          <div className="space-y-2">
+            <label className="text-xs text-slate-300 font-bold block">
+              Total {editingToken.symbol} Amount:
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={editAmountInput}
+              onChange={(e) => setEditAmountInput(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setEditingToken(null)}
+              className="py-2 px-4 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveTokenAmount}
+              className="py-2 px-5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20"
+            >
+              Save Amount
+            </button>
+          </div>
+        </SwipeableContainer>
       )}
 
       {/* MODAL 2: Add New Token Holding */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Plus className="w-4 h-4 text-cyan-400" />
-                <span>Add Token to Portfolio Summary</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400"
+        <SwipeableContainer
+          onClose={() => setIsAddModalOpen(false)}
+          direction="down"
+          backdropClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+          className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl"
+        >
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Plus className="w-4 h-4 text-cyan-400" />
+              <span>Add Token to Portfolio Summary</span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(false)}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-slate-300 font-bold block mb-1">Select Token Asset:</label>
+              <select
+                value={newTokenSelected.id}
+                onChange={(e) => {
+                  const match = AVAILABLE_TOKENS_LIST.find((t) => t.id === e.target.value);
+                  if (match) setNewTokenSelected(match);
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:border-cyan-500 focus:outline-none"
               >
-                <X className="w-4 h-4" />
-              </button>
+                {AVAILABLE_TOKENS_LIST.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.symbol}) - {t.chain}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-300 font-bold block mb-1">Select Token Asset:</label>
-                <select
-                  value={newTokenSelected.id}
-                  onChange={(e) => {
-                    const match = AVAILABLE_TOKENS_LIST.find((t) => t.id === e.target.value);
-                    if (match) setNewTokenSelected(match);
-                  }}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:border-cyan-500 focus:outline-none"
-                >
-                  {AVAILABLE_TOKENS_LIST.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.symbol}) - {t.chain}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-300 font-bold block mb-1">Quantity Held:</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={newTokenAmountInput}
-                  onChange={(e) => setNewTokenAmountInput(e.target.value)}
-                  placeholder="e.g. 100"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:border-cyan-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3">
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="py-2 px-4 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAddNewToken}
-                className="py-2 px-5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20"
-              >
-                Add Holding
-              </button>
+            <div>
+              <label className="text-xs text-slate-300 font-bold block mb-1">Quantity Held:</label>
+              <input
+                type="number"
+                step="any"
+                value={newTokenAmountInput}
+                onChange={(e) => setNewTokenAmountInput(e.target.value)}
+                placeholder="e.g. 100"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:border-cyan-500 focus:outline-none"
+              />
             </div>
           </div>
-        </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3">
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(false)}
+              className="py-2 px-4 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAddNewToken}
+              className="py-2 px-5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20"
+            >
+              Add Holding
+            </button>
+          </div>
+        </SwipeableContainer>
       )}
     </div>
   );

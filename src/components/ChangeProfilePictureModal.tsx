@@ -178,13 +178,31 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+        onClick={onClose}
+      >
         <motion.div
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={0.35}
+          dragSnapToOrigin
+          onDragEnd={(_, info) => {
+            if (info.offset.y > 70 || info.velocity.y > 250) {
+              onClose();
+            }
+          }}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] cursor-grab active:cursor-grabbing relative"
         >
+          {/* Drag handle for mobile */}
+          <div className="w-full flex justify-center pt-2 pb-0 touch-none select-none bg-slate-950/50">
+            <div className="w-12 h-1.5 bg-slate-700/80 hover:bg-slate-500 rounded-full transition-colors" />
+          </div>
+
           {/* Header */}
           <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
             <div className="flex items-center gap-2.5">

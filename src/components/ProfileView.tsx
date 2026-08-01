@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Send,
@@ -18,6 +18,13 @@ import {
   EyeOff,
   Lock,
   Camera,
+  Cpu,
+  Monitor,
+  Globe,
+  RefreshCw,
+  Clock,
+  HardDrive,
+  Terminal,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWallet } from '../context/WalletContext';
@@ -26,6 +33,9 @@ import { api } from '../services/api';
 import { ChangeProfilePictureModal } from './ChangeProfilePictureModal';
 import { PortfolioSummary } from './PortfolioSummary';
 import { StakingDashboard } from './StakingDashboard';
+import { TrustedDevicesModal } from './TrustedDevicesModal';
+import { Smartphone, ShieldCheck } from 'lucide-react';
+import { DeviceDiagnostics, DeviceDiagnosticEntry } from '../lib/deviceDiagnostics';
 
 export const ProfileView: React.FC = () => {
   const { user, updateProfile, removeWalletFromProfile, clearDemoWallets } = useAuth();
@@ -33,12 +43,29 @@ export const ProfileView: React.FC = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [isDevicesModalOpen, setIsDevicesModalOpen] = useState(false);
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [username, setUsername] = useState(user?.username || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=250&q=80');
   const [bio, setBio] = useState(user?.bio || '');
   const [copiedReferral, setCopiedReferral] = useState(false);
+
+  // Device Diagnostics System State
+  const [deviceHistory, setDeviceHistory] = useState<DeviceDiagnosticEntry[]>([]);
+  const [currentDiag, setCurrentDiag] = useState<DeviceDiagnosticEntry | null>(null);
+
+  useEffect(() => {
+    const logged = DeviceDiagnostics.logConnectionSession();
+    setCurrentDiag(logged);
+    setDeviceHistory(DeviceDiagnostics.getDeviceHistory());
+  }, []);
+
+  const handleRefreshDiagnostics = () => {
+    const current = DeviceDiagnostics.captureCurrentDiagnostics();
+    setCurrentDiag(current);
+    setDeviceHistory(DeviceDiagnostics.getDeviceHistory());
+  };
 
   // Avatar Presets
   const AVATAR_PRESETS = [
@@ -559,7 +586,205 @@ export const ProfileView: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Security & Trusted Devices Hub Card */}
+        <div className="p-6 rounded-3xl bg-slate-900 border border-cyan-500/30 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-base">Доверенные устройства & История входов</h3>
+                <p className="text-xs text-slate-400">
+                  Управление доверенными устройствами, текущими сессиями и журналами входа
+                </p>
+              </div>
+            </div>
+
+            <button
+              id="btn_manage_trusted_devices"
+              onClick={() => setIsDevicesModalOpen(true)}
+              className="py-2 px-4 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer min-h-[44px]"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Устройства & Сессии</span>
+            </button>
+          </div>
+        </div>
+
+        {/* System & Device Diagnostics History Section */}
+        <div id="system_device_diagnostics_section" className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-5 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                <Cpu className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-white text-base">Система (System Diagnostics)</h3>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
+                    Device Metadata
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  История подключения, параметры экрана и метрики текущей веб-сессии
+                </p>
+              </div>
+            </div>
+
+            <button
+              id="btn_refresh_device_diagnostics"
+              onClick={handleRefreshDiagnostics}
+              className="px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
+              title="Обновить метрики"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Обновить</span>
+            </button>
+          </div>
+
+          {/* Current Active Session Diagnostics Specs */}
+          {currentDiag && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                  <Monitor className="w-3.5 h-3.5 text-cyan-400" /> Разрешение экрана
+                </span>
+                <p className="text-sm font-bold text-white font-mono">
+                  {currentDiag.screenWidth} × {currentDiag.screenHeight} px
+                </p>
+                <span className="text-[10px] text-slate-400 block font-mono">
+                  DPR: {currentDiag.devicePixelRatio}x
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                  <HardDrive className="w-3.5 h-3.5 text-emerald-400" /> Viewport (Окно)
+                </span>
+                <p className="text-sm font-bold text-white font-mono">
+                  {currentDiag.viewportWidth} × {currentDiag.viewportHeight} px
+                </p>
+                <span className="text-[10px] text-emerald-400 block font-mono">
+                  Тип: {currentDiag.deviceType}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" /> Время входа
+                </span>
+                <p className="text-xs font-bold text-white font-mono truncate">
+                  {new Date(currentDiag.timestamp).toLocaleTimeString()}
+                </p>
+                <span className="text-[10px] text-slate-400 block font-mono truncate">
+                  {new Date(currentDiag.timestamp).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                  <Globe className="w-3.5 h-3.5 text-purple-400" /> Платформа & Сеть
+                </span>
+                <p className="text-xs font-bold text-white font-mono truncate">
+                  {currentDiag.platform}
+                </p>
+                <span className="text-[10px] text-purple-300 block font-mono truncate">
+                  {currentDiag.connectionType || 'Connected'} ({currentDiag.language})
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* User Agent Raw String Card */}
+          {currentDiag && (
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-cyan-400" /> User Agent (Идентификатор браузера)
+              </span>
+              <p className="text-[11px] font-mono text-slate-300 bg-slate-900/90 p-2.5 rounded-xl border border-slate-800/80 break-all select-all">
+                {currentDiag.userAgent}
+              </p>
+            </div>
+          )}
+
+          {/* Device History Log Table */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                История подключений устройств ({deviceHistory.length})
+              </h4>
+              {deviceHistory.length > 0 && (
+                <button
+                  onClick={() => {
+                    DeviceDiagnostics.clearDeviceHistory();
+                    setDeviceHistory([]);
+                  }}
+                  className="text-[10px] text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                >
+                  Очистить историю
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+              {deviceHistory.map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 rounded-xl bg-cyan-950 text-cyan-400 shrink-0">
+                      <Monitor className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white font-mono">{item.deviceType}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                          {item.screenWidth}×{item.screenHeight}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          DPR {item.devicePixelRatio}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-mono truncate max-w-xs sm:max-w-md">
+                        {item.userAgent}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[11px] text-cyan-300 font-mono font-semibold block">
+                      {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono block">
+                      {new Date(item.timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Change Photo Modal */}
+      <ChangeProfilePictureModal
+        isOpen={isPhotoModalOpen}
+        onClose={() => setIsPhotoModalOpen(false)}
+        currentAvatarUrl={avatarUrl}
+        onSaveAvatar={(url) => {
+          setAvatarUrl(url);
+          setIsPhotoModalOpen(false);
+        }}
+      />
+
+      {/* Trusted Devices & Session History Modal */}
+      <TrustedDevicesModal
+        isOpen={isDevicesModalOpen}
+        onClose={() => setIsDevicesModalOpen(false)}
+      />
     </div>
   );
 };

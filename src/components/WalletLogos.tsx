@@ -188,8 +188,9 @@ export const WalletLogoMap: Record<string, React.FC<LogoProps>> = {
   nexorum_vault: NexoVaultLogo,
 };
 
-export const getWalletLogo = (id: string, className = "w-6 h-6"): React.ReactNode => {
-  const Component = WalletLogoMap[id.toLowerCase()];
+export const getWalletLogo = (id?: string, className = "w-6 h-6"): React.ReactNode => {
+  const safeId = (id || '').toLowerCase();
+  const Component = WalletLogoMap[safeId];
   if (Component) {
     return <Component className={className} />;
   }
