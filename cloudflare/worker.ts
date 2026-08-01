@@ -78,6 +78,40 @@ function randomHex(len: number): string {
   return Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 }
 
+// --- RPC PROXY FALLBACK CHAIN ---
+// Public RPC endpoints are individually unreliable (rate limits, transient
+// "Internal error" JSON-RPC responses, or blocking Workers' shared IP
+// ranges outright). The proxy below tries each URL in order and only
+// gives up after all of them fail, instead of surfacing a single flaky
+// provider's error straight to the browser.
+const RPC_FALLBACKS: Record<string, string[]> = {
+  ethereum: [
+    'https://cloudflare-eth.com',
+    'https://ethereum-rpc.publicnode.com',
+    'https://rpc.ankr.com/eth',
+  ],
+  bsc: [
+    'https://bsc-dataseed.binance.org/',
+    'https://bsc-rpc.publicnode.com',
+    'https://rpc.ankr.com/bsc',
+  ],
+  polygon: [
+    'https://polygon-rpc.com/',
+    'https://polygon-bor-rpc.publicnode.com',
+    'https://rpc.ankr.com/polygon',
+  ],
+  arbitrum: [
+    'https://arb1.arbitrum.io/rpc',
+    'https://arbitrum-one-rpc.publicnode.com',
+    'https://rpc.ankr.com/arbitrum',
+  ],
+  base: [
+    'https://mainnet.base.org',
+    'https://base-rpc.publicnode.com',
+    'https://rpc.ankr.com/base',
+  ],
+};
+
 // --- AES-256 NON-CUSTODIAL WALLET VAULT ENCRYPTION ENGINE ---
 function getVaultSecret(env: Env): string {
   return env.VAULT_ENCRYPTION_SECRET || 'nexorum_vault_secure_key_2026_aes256_prod';
@@ -1727,33 +1761,51 @@ app.post('/api/v1/staking/unstake', async (c) => {
 
 app.post('/api/v1/rpc/:network', async (c) => {
   const network = c.req.param('network');
-  const targetUrl = db.settings.rpcUrls[network];
-  if (!targetUrl) return c.json({ error: `Unknown network: ${network}` }, 400);
+  const candidates = RPC_FALLBACKS[network] || (db.settings.rpcUrls[network] ? [db.settings.rpcUrls[network]] : []);
+  if (candidates.length === 0) return c.json({ error: `Unknown network: ${network}` }, 400);
 
   const body = await c.req.text();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9000);
-  try {
-    const upstream = await fetch(targetUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-      signal: controller.signal,
-    });
-    const text = await upstream.text();
-    return new Response(text, {
-      status: upstream.status,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (err: any) {
-    const isTimeout = err?.name === 'AbortError';
-    return c.json(
-      { error: isTimeout ? `RPC proxy timed out reaching ${network} upstream` : `RPC proxy failed: ${err?.message || 'unknown error'}` },
-      502
-    );
-  } finally {
-    clearTimeout(timeout);
+  let lastError = 'no RPC endpoints configured';
+
+  for (const targetUrl of candidates) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal: controller.signal,
+      });
+      const text = await upstream.text();
+
+      // A JSON-RPC error (e.g. cloudflare-eth.com's flaky -32603 "Internal
+      // error") comes back as HTTP 200 with an `error` field — treat that
+      // as a failure too, so we actually fall through to the next provider
+      // instead of relaying a broken response.
+      if (upstream.ok) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.error) {
+            lastError = `${targetUrl}: ${parsed.error.message || 'JSON-RPC error'}`;
+            continue;
+          }
+        } catch {
+          // Non-JSON 200 response — also treat as failure and try the next one.
+          lastError = `${targetUrl}: non-JSON response`;
+          continue;
+        }
+        return new Response(text, { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      lastError = `${targetUrl}: HTTP ${upstream.status}`;
+    } catch (err: any) {
+      lastError = `${targetUrl}: ${err?.name === 'AbortError' ? 'timed out' : err?.message || 'request failed'}`;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+
+  return c.json({ error: `All RPC endpoints for ${network} failed. Last error: ${lastError}` }, 502);
 });
 
 app.all('/api/*', (c) => c.json({ error: 'Not found', path: new URL(c.req.url).pathname }, 404));
