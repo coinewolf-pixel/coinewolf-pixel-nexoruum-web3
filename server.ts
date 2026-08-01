@@ -30,6 +30,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// --- ADMIN AUTH MIDDLEWARE ---
+// Admin routes are separated from the public API and require a dedicated
+// admin token (ADMIN_API_TOKEN env var). Unlike the vault secret, there is
+// NO insecure fallback here on purpose: if ADMIN_API_TOKEN is not configured,
+// admin routes fail closed (503) instead of silently opening up.
+const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN || '';
+
+function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!ADMIN_API_TOKEN) {
+    return res.status(503).json({ error: 'Admin API is not configured (ADMIN_API_TOKEN missing on server).' });
+  }
+  const header = req.header('Authorization') || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : req.header('X-Admin-Token');
+
+  if (!token || token !== ADMIN_API_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized: valid admin token required.' });
+  }
+  next();
+}
+
 // --- AES-256 NON-CUSTODIAL WALLET VAULT ENCRYPTION ENGINE ---
 const VAULT_SECRET_KEY = process.env.VAULT_ENCRYPTION_SECRET || 'nexorum_vault_secure_key_2026_aes256_prod';
 
@@ -530,6 +550,27 @@ app.post('/api/v1/user/export-nexo-vault', (req, res) => {
 
   if (!user || !user.encryptedPrivateKey) {
     return res.status(404).json({ error: 'NEXO Non-Custodial Vault not found' });
+  }
+
+  // SECURITY: actually verify the PIN before decrypting/returning the
+  // private key + mnemonic, instead of accepting the `pin` field unchecked.
+  if (!(user as any).vaultPinHash) {
+    if (!pin || String(pin).length < 4) {
+      return res.status(400).json({ error: 'A PIN (min 4 digits) is required to protect this vault export.' });
+    }
+    (user as any).vaultPinHash = crypto.createHash('sha256').update(String(pin)).digest('hex');
+  } else if (!pin || crypto.createHash('sha256').update(String(pin)).digest('hex') !== (user as any).vaultPinHash) {
+    db.auditLogs.unshift({
+      id: `log_${Date.now()}`,
+      userId: user.id,
+      action: 'VAULT_EXPORT_DENIED_BAD_PIN',
+      category: 'SECURITY',
+      details: `Failed vault export attempt for ${user.nexoVaultAddress}: incorrect PIN.`,
+      ipAddress: req.ip || '127.0.0.1',
+      status: 'FAILED',
+      timestamp: new Date().toISOString(),
+    });
+    return res.status(401).json({ error: 'Incorrect PIN.' });
   }
 
   const decryptedKey = decryptVaultData(user.encryptedPrivateKey);
@@ -1522,11 +1563,11 @@ app.post('/api/v1/ai/viral-campaign', async (req, res) => {
 });
 
 // 11. Admin Settings & System Logs
-app.get('/api/v1/admin/settings', (req, res) => {
+app.get('/api/v1/admin/settings', requireAdminAuth, (req, res) => {
   res.json({ success: true, settings: db.settings });
 });
 
-app.post('/api/v1/admin/settings', (req, res) => {
+app.post('/api/v1/admin/settings', requireAdminAuth, (req, res) => {
   const { settings } = req.body;
   if (settings) {
     db.settings = { ...db.settings, ...settings };
@@ -1534,7 +1575,7 @@ app.post('/api/v1/admin/settings', (req, res) => {
   res.json({ success: true, settings: db.settings });
 });
 
-app.get('/api/v1/admin/logs', (req, res) => {
+app.get('/api/v1/admin/logs', requireAdminAuth, (req, res) => {
   res.json({
     success: true,
     logs: db.auditLogs,
@@ -1567,7 +1608,7 @@ app.get('/api/v1/airdrops', (req, res) => {
   res.json({ success: true, airdrops: db.airdrops });
 });
 
-app.post('/api/v1/airdrops/create', (req, res) => {
+app.post('/api/v1/airdrops/create', requireAdminAuth, (req, res) => {
   const { title, symbol, amountPerUser, totalPool, network, description } = req.body;
   const newAirdrop = {
     id: `airdrop_${Date.now()}`,
@@ -1610,7 +1651,7 @@ app.post('/api/v1/airdrops/create', (req, res) => {
   res.json({ success: true, airdrop: newAirdrop });
 });
 
-app.post('/api/v1/airdrops/status', (req, res) => {
+app.post('/api/v1/airdrops/status', requireAdminAuth, (req, res) => {
   const { airdropId, status } = req.body;
   const airdrop = db.airdrops.find((a) => a.id === airdropId);
   if (airdrop) {
@@ -1629,7 +1670,7 @@ app.post('/api/v1/airdrops/status', (req, res) => {
   res.json({ success: true, airdrop });
 });
 
-app.post('/api/v1/airdrops/distribute', (req, res) => {
+app.post('/api/v1/airdrops/distribute', requireAdminAuth, (req, res) => {
   const { airdropId } = req.body;
   const airdrop = db.airdrops.find((a) => a.id === airdropId);
   if (!airdrop) return res.status(404).json({ error: 'Airdrop campaign not found' });

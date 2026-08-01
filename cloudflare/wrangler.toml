@@ -1,24 +1,30 @@
-name = "nexorum-web3-app"
+name = "web3"
 main = "worker.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-[site]
-bucket = "../dist"
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
 
 [vars]
 ENVIRONMENT = "production"
 NEXORUM_KERNEL_VERSION = "1.0.0"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "nexorum_web3_db"
-database_id = "00000000-0000-0000-0000-000000000000"
+# D1 database and KV namespace bindings were previously configured here with
+# placeholder IDs ("00000000...") that don't correspond to real resources in
+# the Cloudflare account, which made every deploy fail with
+# "KV namespace '00000...' not found". Neither binding is currently
+# referenced anywhere in worker.ts (db.* is still in-memory — see the
+# module docblock at the top of worker.ts), so they've been removed rather
+# than pointed at fake IDs. To add real persistence later:
+#   wrangler d1 create nexorum_web3_db
+#   wrangler kv namespace create NEXORUM_KV
+# then re-add [[d1_databases]] / [[kv_namespaces]] here with the real IDs
+# those commands print out.
 
-[[kv_namespaces]]
-binding = "NEXORUM_KV"
-id = "00000000000000000000000000000000"
-
-[routes]
+[[routes]]
 pattern = "web3.nexorum.os/*"
 zone_name = "nexorum.os"

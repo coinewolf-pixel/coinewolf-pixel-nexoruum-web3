@@ -773,8 +773,8 @@ export const ProfileView: React.FC = () => {
       <ChangeProfilePictureModal
         isOpen={isPhotoModalOpen}
         onClose={() => setIsPhotoModalOpen(false)}
-        currentPhotoUrl={avatarUrl}
-        onSelectPhoto={(url) => {
+        currentAvatarUrl={avatarUrl}
+        onSaveAvatar={(url) => {
           setAvatarUrl(url);
           setIsPhotoModalOpen(false);
         }}

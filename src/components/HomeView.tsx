@@ -1076,7 +1076,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ setActiveTab }) => {
                         {token.name}
                       </h3>
                       {token.isVerified && (
-                        <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" title="Verified Contract" />
+                        <span title="Verified Contract" className="inline-flex shrink-0">
+                          <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
