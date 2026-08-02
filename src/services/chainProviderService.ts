@@ -248,60 +248,85 @@ export async function connectWithReownAppKit(): Promise<{
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    let unsubscribeAccount: (() => void) | undefined;
+    let unsubscribeState: (() => void) | undefined;
 
-    const unsubscribeAccount = appKitModal.subscribeAccount(async (account: any) => {
-      if (settled || !account?.isConnected || !account?.address) return;
+    const finish = (account: any) => {
+      if (settled) return;
+      settled = true;
+      unsubscribeAccount?.();
+      unsubscribeState?.();
+      clearTimeout(hardTimeout);
+      appKitModal.close();
 
+      // Determine the network from AppKit's own tracked state (no RPC call
+      // needed) instead of calling browserProvider.getNetwork() — that call
+      // depends on the wallet's provider responding to network-detection
+      // requests, and if it hangs (seen in the wild: ethers retrying
+      // "failed to detect network" indefinitely), the whole connection
+      // flow used to hang forever, making a real, successful wallet
+      // connection look like nothing happened at all.
+      let networkId: NetworkId = 'ethereum';
       try {
-        const walletProvider = appKitModal.getWalletProvider();
-        if (!walletProvider) return;
-
-        const browserProvider = new ethers.BrowserProvider(walletProvider as any);
-        const network = await browserProvider.getNetwork();
-        const chainIdNumber = Number(network.chainId);
-
-        let networkId: NetworkId = 'ethereum';
+        const caipNetwork = appKitModal.getCaipNetwork?.();
+        const chainIdNumber = Number(caipNetwork?.id);
         if (chainIdNumber === 7780) networkId = 'nexorum';
         else if (chainIdNumber === 56 || chainIdNumber === 97) networkId = 'bsc';
         else if (chainIdNumber === 137 || chainIdNumber === 80001) networkId = 'polygon';
         else if (chainIdNumber === 42161) networkId = 'arbitrum';
         else if (chainIdNumber === 8453) networkId = 'base';
-
-        const onChainResult = await fetchOnChainBalances(account.address, networkId);
-
-        settled = true;
-        unsubscribeAccount?.();
-        appKitModal.close();
-
-        resolve({
-          address: account.address,
-          networkId,
-          nativeBalance: onChainResult.nativeBalanceFormatted,
-          balanceUsd: onChainResult.totalBalanceUsd,
-        });
-      } catch (err) {
-        settled = true;
-        unsubscribeAccount?.();
-        reject(err instanceof Error ? err : new Error('Failed to finalize WalletConnect session.'));
+      } catch {
+        // Keep the 'ethereum' default if AppKit's state isn't available yet.
       }
+
+      // Resolve as soon as the wallet is genuinely connected. Balance is
+      // fetched separately afterward (see WalletContext's syncOnChainBalances
+      // call) so a slow/flaky RPC can never block a successful connection
+      // from being recognized by the app.
+      resolve({
+        address: account.address,
+        networkId,
+        nativeBalance: '0',
+        balanceUsd: 0,
+      });
+    };
+
+    unsubscribeAccount = appKitModal.subscribeAccount((account: any) => {
+      if (settled || !account?.isConnected || !account?.address) return;
+      finish(account);
     });
 
-    // If the user closes the modal without connecting, reject after a grace period.
-    const unsubscribeState = appKitModal.subscribeState((state: any) => {
+    // If the user closes the modal, check whether a connection actually
+    // went through right before closing (AppKit sometimes closes the modal
+    // right as the account event fires) before treating it as cancelled.
+    unsubscribeState = appKitModal.subscribeState((state: any) => {
       if (settled) return;
       if (state?.open === false) {
         setTimeout(() => {
           if (settled) return;
           const account = appKitModal.getAccount?.();
-          if (!account?.isConnected) {
+          if (account?.isConnected && account?.address) {
+            finish(account);
+          } else {
             settled = true;
             unsubscribeAccount?.();
             unsubscribeState?.();
+            clearTimeout(hardTimeout);
             reject(new Error('WalletConnect session was closed before a wallet connected.'));
           }
         }, 300);
       }
     });
+
+    // Hard safety net: never let this hang forever even if AppKit's own
+    // events don't fire for some unexpected reason.
+    const hardTimeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      unsubscribeAccount?.();
+      unsubscribeState?.();
+      reject(new Error('WalletConnect session timed out after 2 minutes.'));
+    }, 120000);
 
     appKitModal.open();
   });
