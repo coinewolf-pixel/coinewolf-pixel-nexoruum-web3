@@ -30,10 +30,27 @@ if (!(import.meta as any).env?.VITE_REOWN_PROJECT_ID) {
 
 const appOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://nexorum.network';
 
+// AppKit's own internal balance-fetching (shown inside the wallet-connect
+// modal UI) uses its own default RPC URLs baked into the network defs from
+// '@reown/appkit/networks' (NOT our app's getJsonRpcProvider / RPC proxy).
+// Those defaults have turned out to be unreliable (e.g. mainnet's default
+// pointed straight at the flaky cloudflare-eth.com with no fallback).
+// customRpcUrls overrides them to go through our own same-origin
+// /api/v1/rpc/:network proxy, which already has a multi-provider fallback
+// chain — see cloudflare/worker.ts.
+const customRpcUrls = {
+  'eip155:1': [{ url: `${appOrigin}/api/v1/rpc/ethereum` }],
+  'eip155:56': [{ url: `${appOrigin}/api/v1/rpc/bsc` }],
+  'eip155:137': [{ url: `${appOrigin}/api/v1/rpc/polygon` }],
+  'eip155:42161': [{ url: `${appOrigin}/api/v1/rpc/arbitrum` }],
+  'eip155:8453': [{ url: `${appOrigin}/api/v1/rpc/base` }],
+};
+
 export const appKitModal = createAppKit({
   adapters: [new EthersAdapter()],
   networks: [mainnet, bsc, polygon, arbitrum, base],
   projectId: REOWN_PROJECT_ID,
+  customRpcUrls,
   metadata: {
     name: 'NEXORUM',
     description: 'NEXORUM Web3 Platform — staking, token creation, and multi-chain wallet',
