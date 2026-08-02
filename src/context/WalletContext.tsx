@@ -132,7 +132,21 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [user]);
 
-  const openWalletModal = () => setIsModalOpen(true);
+  // Clicking "Connect Wallet" now opens the real Reown AppKit / WalletConnect
+  // modal directly (real QR code, real wallet list — MetaMask, Trust,
+  // Coinbase, etc. — and real browser-extension detection, all built into
+  // AppKit itself) instead of our own custom multi-tab modal. If a wallet
+  // is already connected, fall back to the custom modal for account
+  // management (view address, switch network, disconnect, etc.).
+  const openWalletModal = () => {
+    if (activeWallet) {
+      setIsModalOpen(true);
+      return;
+    }
+    connectWalletProvider('walletconnect').catch((err: any) => {
+      console.warn('[WalletConnect] Connection failed or was cancelled:', err);
+    });
+  };
   const closeWalletModal = () => setIsModalOpen(false);
 
   const connectWalletProvider = async (providerId: WalletProviderId, networkId?: NetworkId, customAddress?: string) => {
