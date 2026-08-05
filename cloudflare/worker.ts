@@ -36,6 +36,14 @@ export interface Env {
   WALLETCONNECT_PROJECT_ID?: string;
   COINGECKO_API_KEY?: string;
   ENVIRONMENT?: string;
+  // Optional authenticated RPC endpoints (Infura/Alchemy/etc). If set via
+  // Cloudflare dashboard secrets, these are tried FIRST in the RPC proxy's
+  // fallback chain — more reliable than the free public endpoints. Never
+  // commit real values for these; set them via
+  // `wrangler secret put ETHEREUM_RPC_URL` or the dashboard's
+  // Settings -> Variables (mark as "Secret", not plain text).
+  ETHEREUM_RPC_URL?: string;
+  SOLANA_RPC_URL?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -1761,7 +1769,13 @@ app.post('/api/v1/staking/unstake', async (c) => {
 
 app.post('/api/v1/rpc/:network', async (c) => {
   const network = c.req.param('network');
-  const candidates = RPC_FALLBACKS[network] || (db.settings.rpcUrls[network] ? [db.settings.rpcUrls[network]] : []);
+  const envOverride =
+    network === 'ethereum' ? c.env.ETHEREUM_RPC_URL : network === 'solana' ? c.env.SOLANA_RPC_URL : undefined;
+  const baseCandidates = RPC_FALLBACKS[network] || (db.settings.rpcUrls[network] ? [db.settings.rpcUrls[network]] : []);
+  // A configured authenticated endpoint (Infura/Alchemy/etc, set via
+  // Cloudflare secret) is tried first — more reliable than the free
+  // public fallbacks — which stay as a safety net if it's unset or fails.
+  const candidates = envOverride ? [envOverride, ...baseCandidates] : baseCandidates;
   if (candidates.length === 0) return c.json({ error: `Unknown network: ${network}` }, 400);
 
   const body = await c.req.text();
